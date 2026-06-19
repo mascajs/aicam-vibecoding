@@ -1,0 +1,34 @@
+웹캠을 이용해 허공에서 드럼을 칠 수 있는 '핸드트래킹 에어 드럼 패드(Air Drum Pad)' 웹 애플리케이션을 React 파일 하나(App.tsx)로 만들어주세요.
+
+[기술 스택]
+- React (Hooks: useState, useEffect, useRef)
+- Tailwind CSS
+- framer-motion (motion/react 활용한 애니메이션)
+- Web Audio API (순수 코드로 사운드 합성)
+- @mediapipe/tasks-vision (손가락 트래킹)
+
+[세부 구현 요구사항]
+1. 초기 화면 (권한 획득)
+- 브라우저의 오디오 및 비디오 자동재생 보안 정책을 우회하기 위해, 첫 화면에는 "Allow Camera & Start" 버튼이 있어야 합니다. 클릭 시 오디오 컨텍스트를 초기화하고 웹캠 권한을 요청합니다.
+
+2. UI 및 디자인 (다크 테마)
+- 배경은 아주 어두운 색(bg-zinc-950)으로 처리하고, 바탕에 웹캠 영상이 반투명하게, 거울처럼 좌우 반전되어 꽉 차게 나타나야 합니다.
+- 화면 중앙에 4개의 드럼 패드(Kick, Snare, Hi-Hat, Cymbal)를 Grid(2x2)로 배치합니다.
+- 패드는 너무 크지 않게 적당한 정사각형(aspect-square, max-w-2xl 컨테이너 사용) 크기여야 합니다.
+- 패드별 테마 컬러(rose, blue, amber, emerald)를 적용하고 투명도를 주어 유리처럼(backdrop-blur) 예쁘게 렌더링하세요.
+
+3. 드럼 사운드 합성 (Web Audio API)
+- 외부 사운드 에셋을 사용하지 마세요.
+- Oscillator, GainNode, BiquadFilter, 하얀 소음(White noise) 버퍼 등을 조합하여 Kick, Snare, Hi-Hat, Cymbal 소리를 리얼하게 합성하는 4개의 함수를 각각 작성하세요.
+
+4. 핸드 트래킹 및 타격 판정 (핵심)
+- MediaPipe HandLandmarker 모델을 로드하여 양손의 '검지(Index, 8번)'와 '중지(Middle, 12번)' 손가락 끝 위치를 실시간으로 추적하세요.
+- 손가락 끝의 위치는 <canvas>를 덧씌워 하얀색 원으로 표시해 주어 시각적 피드백을 제공하세요.
+- 각 손가락 끝 좌표(X, Y)가 패드 UI의 `getBoundingClientRect()` 영역 안으로 들어올 때 타격으로 인정하고 소리를 냅니다.
+
+5. 다중 손가락 연타 로직 (매우 중요)
+- 한 패드를 연속해서 빠르게 칠 수 있어야 합니다.
+- 단순히 '눌림' 상태만 체크하지 말고, 각 손가락별로 어느 패드 위에 있는지 개별적으로 상태를 추적(Map 등 활용)하세요.
+- A 손가락이 패드 안에 머무르는 중이라도, B 손가락이 패드 영역에 진입하면 즉시 소리가 나야 합니다.
+- 손가락이 패드를 살짝 벗어났다가 다시 들어올 때 부드럽게 연타가 되도록 타격 쿨다운은 50ms 정도로 아주 짧게 설정하세요.
+- 패드를 타격할 때 프레이머 모션(motion.button)을 이용해 버튼이 살짝 작아지고(scale 0.95), 밝아지며(brightness), 주위로 글로우(box-shadow)가 퍼지는 이펙트를 넣어주세요.
