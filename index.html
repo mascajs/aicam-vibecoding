@@ -550,10 +550,6 @@
       font-size: 12px;
     }
 
-    .temporarily-hidden {
-      display: none !important;
-    }
-
     pre {
       max-height: 560px;
       margin: 0;
@@ -647,6 +643,7 @@
     <nav class="nav-scroll" aria-label="AI캠 연수 메뉴">
       <a class="nav-item active" href="#home" data-page="home">⌂ 홈</a>
       <a class="nav-item" href="#basic" data-page="basic">🎒 기초 과정</a>
+      <a class="nav-item" href="#advanced" data-page="advanced">🎓 심화 과정</a>
       <a class="nav-item" href="#prompts" data-page="prompts">🧰 바이브코딩 프롬프트</a>
       <a class="nav-item" href="#agent" data-page="agent">🤖 게임 기획</a>
       <a class="nav-item" href="#resources" data-page="resources">📚 자료실·운영 체크</a>
@@ -659,11 +656,12 @@
         <div class="eyebrow">2026 경기도교육청 AI 융합 교사 연수</div>
         <h1>AI cam X Vibe Coding</h1>
         <p class="lead">
-          AI캠과 바이브코딩을 연수 흐름에 따라 살펴볼 수 있도록 정리했습니다.
+          기초 과정과 심화 과정을 연수 흐름에 따라 살펴볼 수 있도록 정리했습니다.
           프롬프트는 AI Studio에 바로 붙여 넣을 수 있도록 별도 페이지에 모았습니다.
         </p>
         <div class="hero-actions">
           <a class="button primary page-link" href="#basic" data-page="basic">기초 과정 보기</a>
+          <a class="button outline page-link" href="#advanced" data-page="advanced">심화 과정 보기</a>
           <a class="button outline page-link" href="#prompts" data-page="prompts">프롬프트 보기</a>
         </div>
       </div>
@@ -727,7 +725,7 @@
       </div>
     </section>
 
-    <section id="advanced" class="page temporarily-hidden" aria-hidden="true">
+    <section id="advanced" class="page">
       <div class="page-title">
         <h2>심화과정</h2>
         <p>온디바이스 AI와 웹 시리얼 통신을 이해하고, AI캠의 포즈 추정 결과를 활용한 웹 게임을 만들어봅니다.</p>
@@ -751,43 +749,50 @@
       </div>
       <div class="subsection">
         <div class="subsection-title"><span class="badge">교안</span><h3>6시간 흐름</h3></div>
-        <div class="timeline">
-          <article class="step">
-            <div class="step-num">1차시</div>
-            <div class="step-title">온디바이스 AI 이해</div>
+        <div class="lesson-stack">
+          <article class="lesson-block">
+            <h3>1차시. 온디바이스 AI 이해</h3>
             <p>AI의 기본 개념과 데이터·모델의 관계를 살펴보고, 클라우드 AI와 온디바이스 AI의 차이를 이해합니다.</p>
+            <div class="lesson-images">
+              <img class="lesson-image" src="Zikko1.png" alt="JICKO AI캠을 소개하는 1차시 활동 화면">
+            </div>
           </article>
-          <article class="step">
-            <div class="step-num">2차시</div>
-            <div class="step-title">JICKO AI캠 체험</div>
-            <p>AI캠의 구성과 동작 방식을 확인하고, 사물 인식과 포즈 추정 결과를 직접 살펴봅니다.</p>
+          <article class="lesson-block">
+            <h3>2차시. JICKO AI캠 체험</h3>
+            <p>AI캠의 구성과 동작 방식을 확인하고, 사물 인식과 포즈 추정, 모델 학습 기능을 직접 살펴봅니다.</p>
+            <div class="lesson-images">
+              <img class="lesson-image" src="직코2.png" alt="사물 인식과 포즈 분류 및 모델 학습 화면">
+              <img class="lesson-image" src="직코3.png" alt="JICKO AI캠에 내장된 주요 기능 메뉴 화면">
+            </div>
           </article>
-          <article class="step">
-            <div class="step-num">3차시</div>
-            <div class="step-title">웹 시리얼 통신 실습</div>
-            <p>Web Serial API의 역할을 이해하고, 브라우저에서 장치를 연결해 수신 데이터를 확인합니다.</p>
+          <article class="lesson-block">
+            <h3>3차시. 바이브코딩으로 웹앱 만들기</h3>
+            <p>Google AI Studio에 프롬프트를 입력해 학생의 그림이 바닷속을 움직이는 인터랙티브 웹앱을 만들고 실행해봅니다.</p>
+            <div class="lesson-images">
+              <img class="lesson-image" src="바닷속그림놀이터.png" alt="학생 그림이 바닷속을 움직이는 그림 놀이터 웹앱 화면">
+            </div>
           </article>
-          <article class="step">
-            <div class="step-num">4차시</div>
-            <div class="step-title">웹 게임 만들기</div>
-            <p>Google AI Studio에서 프롬프트를 작성하고, 시리얼 입력으로 조작하는 간단한 웹 게임을 만들어봅니다.</p>
+          <article class="lesson-block">
+            <h3>4차시. AI캠 연동 게임 만들기</h3>
+            <p>Web Serial API로 AI캠의 신호를 브라우저에 연결하고, 움직임으로 조작하는 모션 테트리스 게임을 만들어봅니다.</p>
+            <div class="lesson-images">
+              <img class="lesson-image" src="모션테트리스.png" alt="AI캠 움직임으로 조작하는 모션 테트리스 웹 게임 화면">
+            </div>
           </article>
-          <article class="step">
-            <div class="step-num">5차시</div>
-            <div class="step-title">포즈 추정 게임 만들기</div>
-            <p>AI캠의 포즈 추정 결과를 게임 동작에 연결하고, 인식 조건과 조작 방식을 조정해봅니다.</p>
+          <article class="lesson-block">
+            <h3>5차시. 포즈 추정 게임 기획과 제작</h3>
+            <p>게임의 주제와 규칙을 기획하고, AI캠의 포즈 추정 결과를 이동·선택·점프 등의 게임 동작에 연결해봅니다.</p>
           </article>
-          <article class="step">
-            <div class="step-num">6차시</div>
-            <div class="step-title">테스트와 공유</div>
-            <p>게임의 오류와 난이도를 점검하고, 완성한 결과물을 공유하며 수업 활용 방법을 함께 정리합니다.</p>
+          <article class="lesson-block">
+            <h3>6차시. 게임 완성하고 공유하기</h3>
+            <p>게임의 오류와 난이도를 점검하고, 완성한 결과물을 공유하며 교과 수업에 적용할 방법을 함께 정리합니다.</p>
           </article>
         </div>
       </div>
       <div class="subsection">
-        <div class="subsection-title"><span class="badge">자료</span><h3>심화 과정 파일</h3></div>
+        <div class="subsection-title"><span class="badge">교안</span><h3>심화 과정 교안 받기</h3></div>
         <div class="resource-list">
-          <a class="resource" href="2026 경기도미래과학연구원 AI 융합 연수 · 심화과정.pdf" target="_blank" rel="noopener noreferrer"><span><strong>AI 융합 연수 심화과정 교안</strong><span>심화 6시간 연수용 PDF</span></span><span class="small-button">보기</span></a>
+          <a class="resource" href="2026 경기도미래과학연구원 AI 융합 연수 · 심화과정.pdf" download><span><strong>AI 융합 연수 심화과정 교안</strong><span>심화 6시간 연수용 PDF</span></span><span class="small-button">받기</span></a>
           <a class="resource" href="AI 카메라 카탈로그.pdf" download><span><strong>AI 카메라 카탈로그</strong><span>JICKO AI캠의 구성과 주요 기능을 확인합니다.</span></span><span class="small-button">받기</span></a>
           <a class="resource" href="AI카메라_게임설계_기획서.docx" download><span><strong>AI카메라 게임설계 기획서</strong><span>게임 아이디어를 직접 정리하는 활동지입니다.</span></span><span class="small-button">받기</span></a>
           <a class="resource" href="gembot_prompt_v2.md.pdf" target="_blank" rel="noopener noreferrer"><span><strong>게임 기획 Agent 프롬프트</strong><span>대화형 기획 도우미 자료</span></span><span class="small-button">보기</span></a>
@@ -1197,7 +1202,7 @@ React, Tailwind CSS, Framer Motion을 사용하여 단일 파일(Standalone HTML
         <div class="subsection-title"><span class="badge">전체 자료</span><h3>공유 파일</h3></div>
         <div class="resource-list">
           <a class="resource" href="AI캠_기초과정_final.pptx" download><span><strong>AI캠 기초과정 발표자료</strong><span>기초 3시간 메인 PPT</span></span><span class="small-button">받기</span></a>
-          <a class="resource temporarily-hidden" href="AICAM.html" aria-hidden="true"><span><strong>AI 카메라 × 바이브코딩 심화자료</strong><span>심화 6시간 슬라이드 HTML</span></span><span class="small-button">열기</span></a>
+          <a class="resource" href="AICAM.html" target="_blank" rel="noopener noreferrer"><span><strong>AI 카메라 × 바이브코딩 심화자료</strong><span>심화 6시간 슬라이드 HTML</span></span><span class="small-button">보기</span></a>
           <a class="resource" href="AI카메라_게임설계_기획서.docx" download><span><strong>AI카메라 게임설계 기획서</strong><span>게임 아이디어를 직접 정리하는 활동지입니다.</span></span><span class="small-button">받기</span></a>
           <a class="resource" href="https://gemini.google.com/gem/1CzvVsVYyE1lKz_YWb8i-d8alakL3wmKQ?usp=sharing" target="_blank" rel="noopener noreferrer"><span><strong>Gemini 게임 기획 Agent</strong><span>대화형 게임 기획 도우미를 실행합니다.</span></span><span class="small-button">열기</span></a>
           <a class="resource" href="[AI 리터러시 Lv.2]_별첨_AI카메라 사용 시 주의사항.pptx" target="_blank" rel="noopener noreferrer"><span><strong>AI카메라 사용 시 주의사항</strong><span>부팅, 초점, 발열, 화면 멈춤 등 운영 안내</span></span><span class="small-button">보기</span></a>
