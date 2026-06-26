@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Tetris - Standalone Vue 3</title>
+
+  <!-- 5. 화면 에러 안전장치 (window.onerror) -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      const errDiv = document.createElement('div');
+      errDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:red;color:white;padding:15px;z-index:9999;font-family:sans-serif;word-wrap:break-word;box-shadow:0 4px 6px rgba(0,0,0,0.3);';
+      errDiv.innerHTML = `<strong>⚠️ 앱 실행 중 오류가 발생했습니다:</strong><br><br>${message}<br>Line: ${lineno} | Source: ${source}`;
+      document.body.appendChild(errDiv);
+      return false; // 기본 에러 핸들러 무시하지 않음
+    };
+  </script>
+
+  <!-- 3. 스타일링: Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 2. 프레임워크: Vue 3 Global Build CDN (No React/Babel) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <style>
+    body { background-color: #0f172a; color: white; margin: 0; min-height: 100vh; overflow: hidden; }
+    canvas { background-color: #1e293b; display: block; }
+  </style>
+</head>
+<body class="flex items-center justify-center font-sans">
+  <div id="app" class="flex flex-col md:flex-row gap-8 items-center md:items-start p-4 w-full max-w-4xl justify-center">
+    
+    <!-- Canvas Container -->
+    <div class="relative border-4 border-slate-700 rounded-lg p-1 bg-slate-900 shadow-2xl shrink-0">
+      <canvas ref="gameCanvas" width="300" height="600" class="rounded-sm"></canvas>
+      
+      <!-- Overlays -->
+      <div v-if="!gameStarted" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 text-center rounded-sm z-10">
+        <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">MOTION TETRIS</h1>
+        <p class="text-slate-300 text-sm mb-8 font-medium">Standalone Local Version</p>
+        <button @click="startGame" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-full font-bold text-white transition-all shadow-[0_0_15px_rgba(37,99,235,0.5)] hover:scale-105">
+          Start Game
+        </button>
+      </div>
+
+      <div v-if="gameOver" class="absolute inset-0 bg-red-900/90 flex flex-col items-center justify-center p-6 text-center rounded-sm z-10">
+        <h2 class="text-4xl font-black text-white mb-2">GAME OVER</h2>
+        <p class="text-red-200 mb-8 font-medium">Level: {{ level }} | Lines: {{ lines }}</p>
+        <button @click="startGame" class="px-8 py-3 bg-white text-red-900 hover:bg-red-100 rounded-full font-bold transition-all hover:scale-105">
+          Try Again
+        </button>
+      </div>
+
+      <div v-if="isWon" class="absolute inset-0 bg-emerald-900/90 flex flex-col items-center justify-center p-6 text-center rounded-sm z-10">
+        <h2 class="text-4xl font-black text-white mb-2">YOU WIN!</h2>
+        <p class="text-emerald-200 mb-8 font-medium">Completed Level 5!</p>
+        <button @click="startGame" class="px-8 py-3 bg-white text-emerald-900 hover:bg-emerald-100 rounded-full font-bold transition-all hover:scale-105">
+          Play Again
+        </button>
+      </div>
+    </div>
+
+    <!-- Sidebar / Stats -->
+    <div class="flex flex-col gap-5 w-full max-w-[280px]">
+      
+      <!-- Stats Panel -->
+      <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg">
+        <h3 class="text-slate-400 text-xs font-bold tracking-widest mb-3 uppercase">Game Stats</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-900 p-3 rounded-lg border border-slate-700/50 text-center">
+            <div class="text-slate-500 text-[10px] font-bold mb-1 uppercase">Level</div>
+            <div class="text-2xl font-black text-cyan-400">{{ level }}</div>
+          </div>
+          <div class="bg-slate-900 p-3 rounded-lg border border-slate-700/50 text-center">
+            <div class="text-slate-500 text-[10px] font-bold mb-1 uppercase">Lines</div>
+            <div class="text-2xl font-black text-blue-400">{{ lines }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Panel -->
+      <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg">
+        <h3 class="text-slate-400 text-xs font-bold tracking-widest mb-3 uppercase">Arduino Controller</h3>
+        <div class="flex items-center gap-3 mb-4 p-3 bg-slate-900 rounded-lg border border-slate-700/50">
+          <div :class="['w-3 h-3 rounded-full', isConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]']"></div>
+          <span class="text-sm font-medium text-slate-300">{{ isConnected ? 'Connected (Live)' : 'Waiting for Device' }}</span>
+        </div>
+        
+        <button v-if="!isConnected" @click="connectSerial" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-bold transition-colors shadow-md text-white">
+          Connect USB Device
+        </button>
+        <button v-else @click="disconnectSerial" class="w-full py-2.5 bg-slate-700 hover:bg-red-500/80 hover:text-white rounded-lg text-sm font-bold transition-colors text-slate-300 border border-slate-600">
+          Disconnect
+        </button>
+
+        <div v-if="serialError" class="mt-3 text-xs text-red-300 bg-red-900/30 p-2.5 rounded border border-red-500/30 leading-relaxed">
+          {{ serialError }}
+        </div>
+      </div>
+
+      <!-- Controls Help -->
+      <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg">
+         <h3 class="text-slate-400 text-xs font-bold tracking-widest mb-3 uppercase">How to Play</h3>
+         <ul class="text-[13px] font-medium text-slate-300 space-y-2.5">
+           <li class="flex justify-between items-center"><span class="bg-slate-900 px-2 py-1 rounded text-slate-400 text-xs">Pose 0 / ➡️</span> <span class="text-cyan-400">Right</span></li>
+           <li class="flex justify-between items-center"><span class="bg-slate-900 px-2 py-1 rounded text-slate-400 text-xs">Pose 1 / ⬅️</span> <span class="text-cyan-400">Left</span></li>
+           <li class="flex justify-between items-center"><span class="bg-slate-900 px-2 py-1 rounded text-slate-400 text-xs">Pose 2 / ⬆️</span> <span class="text-cyan-400">Rotate</span></li>
+           <li class="flex justify-between items-center"><span class="bg-slate-900 px-2 py-1 rounded text-slate-400 text-xs">Pose 3 / ⬇️</span> <span class="text-cyan-400">Soft Drop</span></li>
+           <li class="flex justify-between items-center border-t border-slate-700 pt-2 mt-2"><span class="bg-slate-900 px-2 py-1 rounded text-slate-400 text-xs">Spacebar</span> <span class="text-indigo-400">Hard Drop</span></li>
+         </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, onMounted, onUnmounted } = Vue;
+
+    // Constants
+    const COLS = 10;
+    const ROWS = 20;
+    const BLOCK_SIZE = 30;
+
+    const TETROMINOES = {
+      0: { shape: [[0]], color: '0,0,0' },
+      I: { shape: [[0, 'I', 0, 0], [0, 'I', 0, 0], [0, 'I', 0, 0], [0, 'I', 0, 0]], color: '6, 182, 212' },
+      J: { shape: [[0, 'J', 0], [0, 'J', 0], ['J', 'J', 0]], color: '59, 130, 246' },
+      L: { shape: [[0, 'L', 0], [0, 'L', 0], [0, 'L', 'L']], color: '249, 115, 22' },
+      O: { shape: [['O', 'O'], ['O', 'O']], color: '234, 179, 8' },
+      S: { shape: [[0, 'S', 'S'], ['S', 'S', 0], [0, 0, 0]], color: '34, 197, 94' },
+      T: { shape: [[0, 0, 0], ['T', 'T', 'T'], [0, 'T', 0]], color: '168, 85, 247' },
+      Z: { shape: [['Z', 'Z', 0], [0, 'Z', 'Z'], [0, 0, 0]], color: '239, 68, 68' }
+    };
+
+    const randomTetromino = () => {
+      const tetrominos = 'IJLOSTZ';
+      const rand = tetrominos[Math.floor(Math.random() * tetrominos.length)];
+      return TETROMINOES[rand];
+    };
+
+    const createMatrix = (w, h) => Array.from(Array(h), () => new Array(w).fill([0, 'clear']));
+
+    createApp({
+      setup() {
+        const gameCanvas = ref(null);
+        let ctx = null;
+
+        const board = ref(createMatrix(COLS, ROWS));
+        const player = reactive({ pos: { x: 0, y: 0 }, tetromino: TETROMINOES[0].shape });
+
+        const gameStarted = ref(false);
+        const gameOver = ref(false);
+        const isWon = ref(false);
+        const level = ref(1);
+        const lines = ref(0);
+        
+        const isConnected = ref(false);
+        const serialError = ref(null);
+        
+        let dropInterval = null;
+        let port = null;
+        let reader = null;
+        let keepReading = true;
+
+        const getDropTime = (lvl) => Math.max(300, 1500 - (lvl - 1) * 200);
+
+        const draw = () => {
+          if (!ctx) return;
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(0, 0, gameCanvas.value.width, gameCanvas.value.height);
+          
+          // Draw Board
+          board.value.forEach((row, y) => {
+            row.forEach((cell, x) => {
+              ctx.strokeStyle = '#334155';
+              ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+              if (cell[0] !== 0) {
+                ctx.fillStyle = `rgba(${TETROMINOES[cell[0]].color}, 1)`;
+                ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+              }
+            });
+          });
+
+          // Draw Player
+          player.tetromino.forEach((row, y) => {
+            row.forEach((value, x) => {
+              if (value !== 0) {
+                ctx.fillStyle = `rgba(${TETROMINOES[value].color}, 1)`;
+                ctx.fillRect((x + player.pos.x) * BLOCK_SIZE, (y + player.pos.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.strokeRect((x + player.pos.x) * BLOCK_SIZE, (y + player.pos.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+              }
+            });
+          });
+        };
+
+        const resetPlayer = () => {
+          player.tetromino = randomTetromino().shape;
+          player.pos = { x: COLS / 2 - 2, y: 0 };
+        };
+
+        const checkCollision = (playerObj, targetBoard, { x: moveX, y: moveY }) => {
+          for (let y = 0; y < playerObj.tetromino.length; y++) {
+            for (let x = 0; x < playerObj.tetromino[y].length; x++) {
+              if (playerObj.tetromino[y][x] !== 0) {
+                if (
+                  !targetBoard[y + playerObj.pos.y + moveY] ||
+                  !targetBoard[y + playerObj.pos.y + moveY][x + playerObj.pos.x + moveX] ||
+                  targetBoard[y + playerObj.pos.y + moveY][x + playerObj.pos.x + moveX][1] !== 'clear'
+                ) {
+                  return true;
+                }
+              }
+            }
+          }
+          return false;
+        };
+
+        const sweepRows = () => {
+          let rowsCleared = 0;
+          const newBoard = board.value.reduce((ack, row) => {
+            if (row.findIndex(cell => cell[0] === 0) === -1) {
+              rowsCleared += 1;
+              ack.unshift(new Array(COLS).fill([0, 'clear']));
+              return ack;
+            }
+            ack.push(row);
+            return ack;
+          }, []);
+          
+          if (rowsCleared > 0) {
+            lines.value += rowsCleared;
+            const newLevel = Math.floor(lines.value / 10) + 1;
+            if (newLevel > 5) {
+               isWon.value = true;
+               gameOver.value = true;
+               stopLoop();
+            } else if (newLevel !== level.value) {
+               level.value = newLevel;
+               setupLevelBoard(newLevel);
+               updateDropSpeed();
+            }
+            board.value = newBoard;
+          }
+        };
+
+        const merge = () => {
+          const newBoard = [...board.value];
+          player.tetromino.forEach((row, y) => {
+            row.forEach((value, x) => {
+              if (value !== 0) {
+                newBoard[y + player.pos.y][x + player.pos.x] = [value, 'merged'];
+              }
+            });
+          });
+          board.value = newBoard;
+          sweepRows();
+          resetPlayer();
+
+          if (checkCollision(player, board.value, { x: 0, y: 0 })) {
+            gameOver.value = true;
+            stopLoop();
+          }
+        };
+
+        const drop = () => {
+          if (gameOver.value || isWon.value) return;
+          if (!checkCollision(player, board.value, { x: 0, y: 1 })) {
+            player.pos.y += 1;
+          } else {
+            if (player.pos.y < 1) {
+              gameOver.value = true;
+              stopLoop();
+            } else {
+              merge();
+            }
+          }
+        };
+
+        const dropPlayer = () => {
+          stopLoop();
+          drop();
+          startLoop();
+        };
+
+        const movePlayer = (dir) => {
+          if (!checkCollision(player, board.value, { x: dir, y: 0 })) {
+            player.pos.x += dir;
+          }
+        };
+
+        const rotate = (matrix, dir) => {
+          const rotatedTetro = matrix.map((_, index) => matrix.map(col => col[index]));
+          if (dir > 0) return rotatedTetro.map(row => row.reverse());
+          return rotatedTetro.reverse();
+        };
+
+        const playerRotate = (dir) => {
+          const clonedPlayer = JSON.parse(JSON.stringify(player));
+          clonedPlayer.tetromino = rotate(clonedPlayer.tetromino, dir);
+          const pos = clonedPlayer.pos.x;
+          let offset = 1;
+          while (checkCollision(clonedPlayer, board.value, { x: 0, y: 0 })) {
+            clonedPlayer.pos.x += offset;
+            offset = -(offset + (offset > 0 ? 1 : -1));
+            if (offset > clonedPlayer.tetromino[0].length) {
+              rotate(clonedPlayer.tetromino, -dir);
+              clonedPlayer.pos.x = pos;
+              return;
+            }
+          }
+          player.tetromino = clonedPlayer.tetromino;
+          player.pos.x = clonedPlayer.pos.x;
+        };
+
+        const playerHardDrop = () => {
+          let dropY = 0;
+          while (!checkCollision(player, board.value, { x: 0, y: dropY + 1 })) {
+            dropY += 1;
+          }
+          player.pos.y += dropY;
+          merge();
+        };
+
+        const updateDropSpeed = () => {
+          if (dropInterval) {
+             stopLoop();
+             startLoop();
+          }
+        };
+
+        const startLoop = () => {
+          if (dropInterval) clearInterval(dropInterval);
+          dropInterval = setInterval(drop, getDropTime(level.value));
+        };
+
+        const stopLoop = () => {
+          if (dropInterval) {
+            clearInterval(dropInterval);
+            dropInterval = null;
+          }
+        };
+
+        const setupLevelBoard = (lvl) => {
+          const newBoard = createMatrix(COLS, ROWS);
+          if (lvl > 1) {
+            const maxGarbageHeight = (lvl - 1) * 2;
+            for (let y = ROWS - 1; y >= ROWS - maxGarbageHeight; y--) {
+              for (let x = 0; x < COLS; x++) {
+                if (Math.random() > 0.3) {
+                  const types = 'IJLOSTZ';
+                  const randomType = types[Math.floor(Math.random() * types.length)];
+                  newBoard[y][x] = [randomType, 'merged'];
+                }
+              }
+            }
+          }
+          board.value = newBoard;
+        };
+
+        const startGame = () => {
+          setupLevelBoard(1);
+          resetPlayer();
+          level.value = 1;
+          lines.value = 0;
+          gameOver.value = false;
+          isWon.value = false;
+          gameStarted.value = true;
+          startLoop();
+          gameLoop();
+        };
+
+        const gameLoop = () => {
+          draw();
+          if (gameStarted.value) {
+            requestAnimationFrame(gameLoop);
+          }
+        };
+
+        const handleCommand = (cmd) => {
+          if (gameOver.value || isWon.value || !gameStarted.value) return;
+          if (cmd === 0) movePlayer(1);       // Right
+          else if (cmd === 1) movePlayer(-1);  // Left
+          else if (cmd === 2) playerRotate(1); // Rotate
+          else if (cmd === 3) dropPlayer();    // Soft drop
+        };
+
+        // 4. 보안 정책(API) 예외 처리 (Web Serial API)
+        const connectSerial = async () => {
+          try {
+            // 로컬(file://) 환경 경고
+            if (window.location.protocol === 'file:') {
+              alert("⚠️ 보안 경고: 현재 로컬 파일(file://)에서 실행 중입니다.\n크롬 브라우저의 보안 정책상 Web Serial API (USB 장치 연결)가 차단될 수 있습니다.\n기기 목록이 뜨지 않는다면 로컬 웹 서버(Live Server 등)를 이용해주세요!");
+            }
+            
+            if (!('serial' in navigator)) {
+              throw new Error('이 브라우저는 Web Serial API를 지원하지 않습니다. PC용 Chrome이나 Edge 브라우저를 사용해주세요.');
+            }
+
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 115200 });
+            isConnected.value = true;
+            serialError.value = null;
+            keepReading = true;
+            readLoop();
+          } catch (err) {
+            serialError.value = err.message || '시리얼 포트 연결에 실패했습니다.';
+            isConnected.value = false;
+            // 유저가 창을 그냥 닫은 경우(NotFoundError) 제외하고 얼럿 표시
+            if (err.name !== 'NotFoundError') {
+               alert(`연결 실패: ${err.message}`);
+            }
+          }
+        };
+
+        const disconnectSerial = async () => {
+          keepReading = false;
+          if (reader) {
+            try { await reader.cancel(); } catch (e) {}
+            reader = null;
+          }
+          if (port) {
+            try { await port.close(); } catch (e) {}
+            port = null;
+          }
+          isConnected.value = false;
+        };
+
+        const readLoop = async () => {
+          while (port && port.readable && keepReading) {
+            try {
+              reader = port.readable.getReader();
+            } catch (err) { break; }
+            
+            try {
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                if (value) {
+                  for (let i = 0; i < value.length; i++) {
+                    let byte = value[i];
+                    if (byte >= 48 && byte <= 51) byte -= 48; // ASCII 변환
+                    if (byte >= 0 && byte <= 3) {
+                      handleCommand(byte);
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              if (error.message && error.message.includes('device has been lost')) {
+                serialError.value = '기기가 물리적으로 분리되었습니다.';
+              } else {
+                serialError.value = '시리얼 읽기 에러 발생: ' + error.message;
+              }
+              isConnected.value = false;
+              break;
+            } finally {
+              if (reader) {
+                try { reader.releaseLock(); } catch(e){}
+                reader = null;
+              }
+            }
+          }
+        };
+
+        const handleKeyDown = (e) => {
+          if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+            if (gameStarted.value && !gameOver.value && !isWon.value) {
+              e.preventDefault();
+            }
+          }
+          
+          if (gameOver.value || isWon.value || !gameStarted.value) return;
+
+          if (e.key === 'ArrowRight') handleCommand(0);
+          else if (e.key === 'ArrowLeft') handleCommand(1);
+          else if (e.key === 'ArrowUp') handleCommand(2);
+          else if (e.key === 'ArrowDown') handleCommand(3);
+          else if (e.key === ' ') playerHardDrop();
+        };
+
+        onMounted(() => {
+          ctx = gameCanvas.value.getContext('2d');
+          draw();
+          window.addEventListener('keydown', handleKeyDown);
+        });
+
+        onUnmounted(() => {
+          stopLoop();
+          disconnectSerial();
+          window.removeEventListener('keydown', handleKeyDown);
+        });
+
+        return {
+          gameCanvas, gameStarted, gameOver, isWon, level, lines,
+          isConnected, serialError, startGame, connectSerial, disconnectSerial
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

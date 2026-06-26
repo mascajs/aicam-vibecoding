@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>우리 반 바닷속 그림 놀이터</title>
+  <link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+  <style>
+    /* Reset & Base */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #024b7a; color: white; touch-action: none; user-select: none; -webkit-user-select: none; }
+    
+    /* Background Ocean Theme */
+    #world {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(180deg, #0ea5e9 0%, #024b7a 40%, #012e4d 100%);
+      overflow: hidden;
+      z-index: 1;
+    }
+    
+    /* Sun rays */
+    .rays {
+      position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+      background: repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.05) 40px, rgba(255,255,255,0.05) 80px);
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+
+    /* Floor */
+    .floor { position: absolute; bottom: 0; left: 0; width: 100%; height: 120px; border-radius: 100% 100% 0 0 / 20% 20% 0 0; z-index: 2; pointer-events: none; overflow: hidden; box-shadow: inset 0 10px 30px rgba(0,0,0,0.1); }
+    .deco { position: absolute; pointer-events: none; opacity: 0.85; filter: saturate(1.3); text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+    /* Particles */
+    .bubble { position: absolute; bottom: -20px; background: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.4); border-radius: 50%; pointer-events: none; animation: rise infinite ease-in; }
+    @keyframes rise { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100vh) scale(1.5); opacity: 0; } }
+    
+    /* UI Layer */
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; padding: 20px; display: flex; flex-direction: column; }
+    
+    /* Top Bar */
+    .top-bar { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; pointer-events: none; width: 100%; flex-wrap: wrap; }
+    .brand { color: white; display: flex; flex-direction: column; pointer-events: auto; text-shadow: 0 2px 4px rgba(0,0,0,0.3); padding-top: 5px; }
+    .brand h1 { margin: 0; font-size: 24px; font-weight: 900; line-height: 1.2; }
+    .brand div { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+    
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; background: rgba(255,255,255,0.25); backdrop-filter: blur(15px); padding: 12px 20px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.3); pointer-events: auto; justify-content: flex-end; }
+    
+    button, label.btn {
+      background: white; color: #0369a1; border: none; padding: 8px 16px; border-radius: 50px; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); font-family: inherit; margin: 0; white-space: nowrap;
+    }
+    button:hover, label.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); }
+    button:active, label.btn:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    input[type="file"] { display: none; }
+    
+    .btn-primary { background: #0ea5e9; color: white; box-shadow: 0 4px 6px rgba(14, 165, 233, 0.3); }
+    .btn-primary:hover { background: #0284c7; box-shadow: 0 6px 10px rgba(14, 165, 233, 0.4); color: white; }
+
+    /* Guide Card */
+    #guide-card {
+      position: relative; margin-top: 20px; width: 240px; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 90; pointer-events: auto; color: #475569; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s; transform-origin: left top; flex-shrink: 0;
+    }
+    #guide-card h2 { margin: 0 0 10px 0; font-size: 16px; color: #0284c7; display: flex; align-items: center; gap: 8px; font-weight: bold; }
+    #guide-card p, #guide-card li { margin: 0 0 10px 0; font-size: 13px; color: #475569; line-height: 1.5; font-weight: normal; }
+    #guide-card.hidden { transform: translateX(-150%) scale(0.8); opacity: 0; pointer-events: none; }
+    
+    /* Canvas */
+    #creature-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: auto; }
+    
+    /* Exhibition Mode */
+    body.exhibition #ui-layer .brand, 
+    body.exhibition #ui-layer #guide-card { display: none; }
+    body.exhibition .toolbar button:not(#btn-exhibition) { display: none; }
+    body.exhibition .toolbar label.btn { display: none; }
+    body.exhibition .toolbar { background: transparent; border: none; box-shadow: none; padding: 0; pointer-events: none; top: 20px; }
+    body.exhibition .toolbar button { pointer-events: auto; }
+    #btn-exhibition.active { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(5px); color: white; }
+
+    /* Interaction Sparks */
+    .sparkle { position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; box-shadow: 0 0 20px 8px rgba(255,255,255,0.8); pointer-events: none; z-index: 6; animation: sparkleAnim 0.6s ease-out forwards; transform-origin: center; }
+    @keyframes sparkleAnim { 0% { transform: scale(0.2); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+
+    /* Loading Overlay */
+    #loading { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; opacity: 0; pointer-events: none; transition: opacity 0.3s; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    #loading.active { opacity: 1; pointer-events: auto; }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+      .top-bar { flex-direction: column; align-items: center; margin-bottom: 60px; }
+      .brand { width: 100%; text-align: center; justify-content: center; align-items: center; pointer-events: none; }
+      .toolbar { position: fixed; bottom: 15px; left: 15px; width: calc(100% - 30px); border-radius: 20px; justify-content: center; z-index: 100; max-height: 40vh; overflow-y: auto; background: rgba(255,255,255,0.7); backdrop-filter: blur(15px); }
+      #guide-card { position: fixed; top: 80px; left: 50%; width: 90%; max-width: 400px; transform: translateX(-50%); margin:0; z-index: 90; display: flex; flex-direction: column; transform-origin: top center; }
+      #guide-card.hidden { transform: translate(-50%, -150%) scale(0.8); }
+    }
+  </style>
+</head>
+<body>
+  <div id="world">
+    <div class="rays"></div>
+    <div class="floor"></div>
+  </div>
+  
+  <canvas id="creature-canvas"></canvas>
+
+  <div id="loading">✨ 그림을 마법의 세계로 부르는 중...</div>
+
+  <div id="ui-layer">
+    <div class="top-bar">
+      <div class="brand"><h1>우리 반 바닷속 그림 놀이터</h1><div style="font-size:12px;opacity:0.8;">Media Art Web App v2</div></div>
+      <div class="toolbar">
+        <label class="btn btn-primary">
+          📷 사진 추가
+          <input type="file" id="input-camera" accept="image/*" capture="environment">
+        </label>
+        <label class="btn">
+          🖼️ 앨범에서 추가
+          <input type="file" id="input-album" accept="image/*" multiple>
+        </label>
+        <button id="btn-speed">⏱️ 보통 속도</button>
+        <button id="btn-sound">🔇 소리 켜기</button>
+        <button id="btn-guide">ℹ️ 안내 숨기기</button>
+        <button id="btn-fullscreen">🔲 전체화면</button>
+        <button id="btn-clear">🗑️ 전체 지우기</button>
+        <button id="btn-exhibition">👁️ 전시 모드</button>
+      </div>
+    </div>
+    
+    <div id="guide-card">
+      <h2>✨ 사용 방법</h2>
+      <ol style="padding-left: 20px; padding-bottom: 10px;">
+        <li id="guide-step-1"></li>
+        <li>물체를 터치(클릭)하면 개별적으로 방향을 뒤집을 수 있어요.</li>
+        <li id="guide-step-3"></li>
+        <li>물체를 드래그해서 자유롭게 위치를 옮겨보세요.</li>
+      </ol>
+      <hr style="border:0; border-top:1px dashed rgba(0,0,0,0.1); margin: 10px 0;">
+      <h2>📸 사진 촬영 팁</h2>
+      <ul style="padding-left: 20px;">
+        <li>배경(지우고 싶은 부분)은 밝고 깨끗할수록 좋아요.</li>
+        <li>그림자나 빛 반사가 없는 곳에서 찍어주세요.</li>
+        <li>테두리를 진하게 그리면 구분이 더 잘 돼요!</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Theme Configuration Structure for easy expansion
+    const THEMES = {
+      ocean: {
+        id: 'ocean',
+        title: '🫧 우리 반 바닷속 그림 놀이터',
+        bgCss: 'linear-gradient(180deg, #0ea5e9 0%, #024b7a 40%, #012e4d 100%)',
+        floorCss: '#eab308',
+        decoHtml: `
+          <div class="deco" style="left:5%; bottom:10px; font-size:3rem;">🌿</div>
+          <div class="deco" style="left:20%; bottom:10px; font-size:4rem; filter: hue-rotate(45deg);">🪸</div>
+          <div class="deco" style="left:40%; bottom:5px; font-size:2rem;">🐚</div>
+          <div class="deco" style="right:10%; bottom:10px; font-size:3.5rem; transform:scaleX(-1)">🌿</div>
+          <div class="deco" style="right:30%; bottom:10px; font-size:4rem; filter: hue-rotate(-30deg);">🪸</div>
+          <div class="deco" style="right:50%; bottom:20px; font-size:2rem;">🐟</div>
+        `,
+        particleType: 'bubble',
+        guideStep1: "흰 종이에 바다생물을 예쁘게 색칠해요.",
+        guideStep3: "사진을 찍어 올리면 바다로 퐁당!",
+        loadingText: "그림을 마법의 바다로 부르는 중...",
+        yWobbleAmp: 1.5,
+        baseAudioFreq: 300,
+      }
+      // Add 'space', 'forest', 'dinosaur' here later without changing HTML structure
+    };
+
+    // Global State
+    const state = {
+      theme: THEMES.ocean,
+      creatures: [],
+      speedMultiplier: 1,
+      soundEnabled: false,
+      exhibitionMode: false
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('creature-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const loadingUI = document.getElementById('loading');
+    const world = document.getElementById('world');
+
+    // Initialize Theme
+    function applyTheme() {
+      const brandH1 = document.querySelector('.brand h1');
+      if (brandH1) brandH1.innerText = state.theme.title;
+      world.style.background = state.theme.bgCss;
+      const floor = document.querySelector('.floor');
+      floor.style.background = state.theme.floorCss;
+      floor.innerHTML = state.theme.decoHtml;
+      document.getElementById('guide-step-1').innerText = state.theme.guideStep1;
+      document.getElementById('guide-step-3').innerText = state.theme.guideStep3;
+      loadingUI.innerText = '✨ ' + state.theme.loadingText;
+    }
+    applyTheme();
+    
+    // Canvas Resize
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Particle Generation (Bubbles for ocean)
+    function createParticle() {
+      if (state.theme.particleType === 'bubble') {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        const size = Math.random() * 15 + 5;
+        bubble.style.width = size + 'px';
+        bubble.style.height = size + 'px';
+        bubble.style.left = Math.random() * 100 + 'vw';
+        bubble.style.animationDuration = (Math.random() * 6 + 4) + 's';
+        world.appendChild(bubble);
+        setTimeout(() => bubble.remove(), 10000);
+      }
+    }
+    setInterval(createParticle, 400);
+
+    // Audio Synthesis Component
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playInteractSound() {
+      if (!state.soundEnabled) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      osc.type = 'sine';
+      const f = state.theme.baseAudioFreq;
+      osc.frequency.setValueAtTime(f + Math.random()*200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(f*2 + Math.random()*200, audioCtx.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // Image processing: Intelligent background removal for white/light setups
+    function removeBackgroundProcess(img) {
+      const tCanvas = document.createElement('canvas');
+      const tCtx = tCanvas.getContext('2d', { willReadFrequently: true });
+      
+      try {
+        // Limit size
+        const limit = Math.max(window.innerWidth, 1200);
+        let w = img.width;
+        let h = img.height;
+        if (w > limit || h > limit) {
+          if (w > h) { h = Math.floor(h * (limit / w)); w = limit; } 
+          else { w = Math.floor(w * (limit / h)); h = limit; }
+        }
+        
+        // Ensure dimensions are greater than 0
+        w = Math.max(1, w);
+        h = Math.max(1, h);
+        
+        tCanvas.width = w;
+        tCanvas.height = h;
+        tCtx.drawImage(img, 0, 0, w, h);
+        
+        const imgData = tCtx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        
+        // Sample borders to identify background tone
+        let rSum=0, gSum=0, bSum=0, bgCount=0;
+        const pts = [
+          [0,0], [w-1,0], [0,h-1], [w-1,h-1], 
+          [Math.floor(w/2), 0], [Math.floor(w/2), h-1], 
+          [0, Math.floor(h/2)], [w-1, Math.floor(h/2)]
+        ];
+        
+        for(let [sx, sy] of pts) {
+            let idx = (sy*w + sx) * 4;
+            rSum += data[idx]; gSum += data[idx+1]; bSum += data[idx+2];
+            bgCount++;
+        }
+        const isBgLight = ((rSum + gSum + bSum) / (bgCount * 3)) > 140;
+
+        let minX = w, minY = h, maxX = 0, maxY = 0, hasPixels = false;
+        let erasedCount = 0;
+        const totalPixels = w * h;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+          
+          if (a < 10) continue; // Skip already mostly-transparent pixels
+
+          const luminance = 0.299*r + 0.587*g + 0.114*b;
+          const maxC = Math.max(r, g, b);
+          const minC = Math.min(r, g, b);
+          const saturation = maxC - minC;
+          let remove = false;
+          
+          if (isBgLight) {
+              if (luminance > 220 && saturation < 30) remove = true; // Extremely bright highlights
+              else if (luminance > 160 && saturation < 15) remove = true; // High luminance, extremely low saturation (pure shadow on white)
+          } else {
+              if (luminance > 220 && saturation < 25) remove = true; // Darker general bg bright spots
+          }
+
+          if (remove) {
+             data[i+3] = 0;
+             erasedCount++;
+          } else {
+             const px = (i / 4) % w;
+             const py = Math.floor((i / 4) / w);
+             hasPixels = true;
+             if (px < minX) minX = px; if (px > maxX) maxX = px;
+             if (py < minY) minY = py; if (py > maxY) maxY = py;
+          }
+        }
+        
+        tCtx.putImageData(imgData, 0, 0);
+
+        // Failsafe: if the erasing logic removed almost the entire image (unintended), fallback to original!
+        if (!hasPixels || erasedCount > totalPixels * 0.95) {
+            tCtx.clearRect(0, 0, w, h);
+            tCtx.drawImage(img, 0, 0, w, h);
+            return tCanvas;
+        }
+        
+        // Auto-crop
+        const pad = 15;
+        minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+        maxX = Math.min(w, maxX + pad); maxY = Math.min(h, maxY + pad);
+        
+        // Safety clamp sizes
+        let cw = Math.max(1, maxX - minX);
+        let ch = Math.max(1, maxY - minY);
+        
+        const crop = document.createElement('canvas');
+        crop.width = cw; crop.height = ch;
+        crop.getContext('2d').drawImage(tCanvas, minX, minY, cw, ch, 0, 0, cw, ch);
+        return crop;
+      } catch (err) {
+        console.error("BG Remove Err:", err);
+        const fb = document.createElement('canvas');
+        fb.width = Math.max(1, img.width || 100);
+        fb.height = Math.max(1, img.height || 100);
+        fb.getContext('2d').drawImage(img, 0, 0, fb.width, fb.height);
+        return fb;
+      }
+    }
+
+    // Creature Class
+    class Creature {
+      constructor(imgCanvas) {
+        this.img = imgCanvas;
+        
+        // Random scaling based on screen size
+        const baseW = window.innerWidth > 600 ? 200 : 120;
+        const aspectRatio = imgCanvas.height / Math.max(1, imgCanvas.width);
+        
+        let targetW = baseW * (Math.random() * 0.6 + 0.7);
+        let targetH = targetW * aspectRatio;
+        
+        // Failsafe to prevent huge heights dropping creations offscreen
+        if (targetH > canvas.height * 0.5) {
+            targetH = canvas.height * 0.5;
+            targetW = targetH / aspectRatio;
+        }
+        if (targetW > canvas.width * 0.5) {
+            targetW = canvas.width * 0.5;
+            targetH = targetW * aspectRatio;
+        }
+
+        this.w = Math.max(targetW, 10);
+        this.h = Math.max(targetH, 10);
+        
+        // Ensure spawn is centered and entirely onscreen
+        this.x = canvas.width / 2 - this.w / 2 + (Math.random() * 100 - 50);
+        this.y = canvas.height / 2 - this.h / 2 + (Math.random() * 100 - 50);
+        
+        this.vx = (Math.random() * 0.8 + 0.3) * (Math.random() > 0.5 ? 1 : -1);
+        this.baseVy = Math.random() * 0.03 + 0.01;
+        this.time = Math.random() * 100;
+        
+        // Direction the logical object is moving
+        this.direction = this.vx > 0 ? 1 : -1;
+        this.baseDirection = 1;
+        this.isDragging = false;
+        
+        this.targetAngle = 0;
+        this.currentAngle = 0;
+      }
+
+      update() {
+        if (this.isDragging) return;
+
+        this.x += this.vx * state.speedMultiplier;
+        this.time += this.baseVy * state.speedMultiplier;
+        
+        // Sway
+        let wobble = Math.sin(this.time) * state.theme.yWobbleAmp; 
+        this.y += wobble;
+
+        // Bounce horizontally
+        if (this.x < -this.w) {
+            this.x = -this.w;
+            this.vx *= -1;
+            this.direction = 1;
+        } else if (this.x > canvas.width) {
+            this.x = canvas.width;
+            this.vx *= -1;
+            this.direction = -1;
+        }
+        
+        // Soft vertical bounds
+        if (this.y < 30) this.y += 0.5;
+        if (this.y > canvas.height - this.h - window.innerHeight*0.15) this.y -= 0.5;
+        
+        // Hard limits to prevent permanent offscreen drifting
+        if (this.y < -this.h * 1.5) this.y = 10;
+        if (this.y > canvas.height + this.h * 1.5) this.y = Math.max(10, canvas.height - this.h - 10);
+        if (isNaN(this.x) || isNaN(this.y)) { this.x = canvas.width/2; this.y = canvas.height/2; }
+        
+        // Tilt animation
+        this.targetAngle = (wobble * 4) * (Math.PI / 180);
+        this.currentAngle += (this.targetAngle - this.currentAngle) * 0.1;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x + this.w/2, this.y + this.h/2);
+        ctx.rotate(this.currentAngle);
+        
+        // The scale logic:
+        // direction = 1 (moving right). baseDirection = 1 (default user drew right-facing) -> face right
+        // direction = -1 (moving left). baseDirection = 1 -> face left
+        // direction = 1. baseDirection = -1 (user drew left-facing) -> face right (need to flip horizontally)
+        ctx.scale(this.direction * this.baseDirection, 1);
+        
+        ctx.drawImage(this.img, -this.w/2, -this.h/2, this.w, this.h);
+        ctx.restore();
+      }
+
+      contains(px, py) {
+        return px > this.x && px < this.x + this.w && py > this.y && py < this.y + this.h;
+      }
+    }
+
+    // Animation Engine
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = state.creatures.length - 1; i >= 0; i--) {
+        try {
+          const c = state.creatures[i];
+          c.update();
+          c.draw(ctx);
+        } catch (e) {
+          console.error("Creature render err:", e);
+          state.creatures.splice(i, 1);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Intake Logic
+    function processImageFile(file) {
+      if (!file) return Promise.reject("No file provided");
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+             const processed = removeBackgroundProcess(img);
+             resolve(processed);
+          };
+          img.onerror = () => {
+             console.error("Image Decode Failed");
+             const fb = document.createElement('canvas'); // Dummy to prevent app crash
+             fb.width = 100; fb.height = 100;
+             resolve(fb);
+          };
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(document.createElement('canvas'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleFiles(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      const files = Array.from(fileList); // Cache files immediately before yielding
+      
+      loadingUI.classList.add('active');
+      
+      // Delay for UI fade-in
+      await new Promise(r => setTimeout(r, 60));
+      
+      try {
+        for(let i=0; i<files.length; i++) {
+            const processed = await processImageFile(files[i]);
+            state.creatures.push(new Creature(processed));
+            playInteractSound();
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        loadingUI.classList.remove('active');
+      }
+    }
+
+    const inputCamera = document.getElementById('input-camera');
+    const inputAlbum = document.getElementById('input-album');
+    inputCamera.addEventListener('change', (e) => { handleFiles(e.target.files); inputCamera.value = ''; });
+    inputAlbum.addEventListener('change', (e) => { handleFiles(e.target.files); inputAlbum.value = ''; });
+
+    // Interactive Drag Canvas
+    let dragTarget = null, dragOffsetX = 0, dragOffsetY = 0;
+
+    function getPointerPos(e) {
+      if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function spawnVisualSpark(x, y) {
+      const sp = document.createElement('div');
+      sp.className = 'sparkle';
+      sp.style.left = (x - 10) + 'px';
+      sp.style.top = (y - 10) + 'px';
+      document.body.appendChild(sp);
+      setTimeout(() => sp.remove(), 600);
+    }
+
+    canvas.addEventListener('mousedown', pointerDown);
+    canvas.addEventListener('touchstart', pointerDown, {passive: false});
+
+    function pointerDown(e) {
+      if (e.target.closest && (e.target.closest('.toolbar') || e.target.closest('.top-bar') || e.target.closest('#guide-card'))) return;
+      if (e.target !== canvas && (e.target.tagName === 'BUTTON' || e.target.tagName === 'LABEL')) return;
+      
+      const pos = getPointerPos(e);
+      for (let i = state.creatures.length - 1; i >= 0; i--) {
+        const c = state.creatures[i];
+        if (c.contains(pos.x, pos.y)) {
+          dragTarget = c;
+          c.isDragging = true;
+          dragOffsetX = pos.x - c.x;
+          dragOffsetY = pos.y - c.y;
+          c.dragStartX = pos.x;
+          c.dragStartY = pos.y;
+          
+          playInteractSound();
+          spawnVisualSpark(pos.x, pos.y);
+          
+          state.creatures.splice(i, 1);
+          state.creatures.push(c);
+          
+          if(e.cancelable) e.preventDefault();
+          break;
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', pointerMove);
+    window.addEventListener('touchmove', pointerMove, {passive: false});
+
+    function pointerMove(e) {
+      if (!dragTarget) return;
+      const pos = getPointerPos(e);
+      const oldX = dragTarget.x;
+      
+      dragTarget.x = pos.x - dragOffsetX;
+      dragTarget.y = pos.y - dragOffsetY;
+      
+      // Determine facing direction dynamically based on drag
+      if (dragTarget.x > oldX + 1) dragTarget.direction = 1;
+      else if (dragTarget.x < oldX - 1) dragTarget.direction = -1;
+      
+      if(e.cancelable) e.preventDefault();
+    }
+
+    window.addEventListener('mouseup', pointerUp);
+    window.addEventListener('touchend', pointerUp);
+
+    function pointerUp(e) {
+      if (dragTarget) {
+        dragTarget.isDragging = false;
+        dragTarget.vx = Math.abs(dragTarget.vx) * dragTarget.direction;
+        
+        // Tap to flip
+        let currentPos = null;
+        if (e && e.changedTouches && e.changedTouches.length > 0) {
+            currentPos = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+        } else if (e && e.clientX !== undefined) {
+            currentPos = { x: e.clientX, y: e.clientY };
+        }
+
+        if (currentPos && dragTarget.dragStartX !== undefined) {
+            const dx = Math.abs(currentPos.x - dragTarget.dragStartX);
+            const dy = Math.abs(currentPos.y - dragTarget.dragStartY);
+            if (dx < 10 && dy < 10) {
+                // It was a tap/click!
+                dragTarget.baseDirection *= -1;
+                playInteractSound();
+                spawnVisualSpark(currentPos.x, currentPos.y);
+            }
+        }
+
+        dragTarget = null;
+      }
+    }
+
+    // Controls Logic
+    const btnSound = document.getElementById('btn-sound');
+    btnSound.onclick = () => {
+      state.soundEnabled = !state.soundEnabled;
+      btnSound.innerText = state.soundEnabled ? '🔊 소리 켜짐' : '🔇 소리 켜기';
+      if (state.soundEnabled) audioCtx.resume();
+    };
+
+    const btnSpeed = document.getElementById('btn-speed');
+    btnSpeed.onclick = () => {
+      if (state.speedMultiplier === 1) { state.speedMultiplier = 2.5; btnSpeed.innerText = '⚡ 빠른 헤엄'; }
+      else if (state.speedMultiplier === 2.5) { state.speedMultiplier = 0.5; btnSpeed.innerText = '🐢 느린 헤엄'; }
+      else { state.speedMultiplier = 1; btnSpeed.innerText = '⏱️ 보통 속도'; }
+    };
+
+
+    const btnGuide = document.getElementById('btn-guide');
+    const guideCard = document.getElementById('guide-card');
+    btnGuide.onclick = () => {
+      guideCard.classList.toggle('hidden');
+      btnGuide.innerText = guideCard.classList.contains('hidden') ? 'ℹ️ 안내 보기' : 'ℹ️ 안내 숨기기';
+    };
+
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    btnFullscreen.onclick = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(e => console.log(e));
+      } else {
+        document.exitFullscreen();
+      }
+    };
+
+    const btnClear = document.getElementById('btn-clear');
+    btnClear.onclick = () => state.creatures = [];
+
+    const btnExhibition = document.getElementById('btn-exhibition');
+    btnExhibition.onclick = () => {
+      state.exhibitionMode = !state.exhibitionMode;
+      if (state.exhibitionMode) {
+        document.body.classList.add('exhibition');
+        btnExhibition.classList.add('active');
+        btnExhibition.innerText = '✖️ 전시 모드 종료';
+        guideCard.classList.add('hidden');
+      } else {
+        document.body.classList.remove('exhibition');
+        btnExhibition.classList.remove('active');
+        btnExhibition.innerText = '👁️ 전시 모드';
+        btnGuide.innerText = 'ℹ️ 안내 보기';
+      }
+    };
+  </script>
+</body>
+</html>

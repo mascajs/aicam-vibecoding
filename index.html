@@ -451,6 +451,47 @@
       font-size: 13px;
     }
 
+    .work-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .work-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 230px;
+      padding: 20px;
+      border: 1px solid rgba(104, 107, 130, 0.18);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: var(--micro-shadow);
+    }
+
+    .work-card h3 {
+      margin-top: 12px;
+    }
+
+    .work-card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .work-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 18px;
+    }
+
+    .work-actions .button {
+      padding: 9px 11px;
+      font-size: 13px;
+    }
+
     .small-button {
       display: inline-flex;
       align-items: center;
@@ -594,6 +635,10 @@
         grid-template-columns: 1fr 1fr;
       }
 
+      .work-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
       .hero {
         min-height: auto;
       }
@@ -614,6 +659,7 @@
 
       .grid,
       .two-grid,
+      .work-grid,
       .stat-grid {
         grid-template-columns: 1fr;
       }
@@ -645,6 +691,7 @@
       <a class="nav-item" href="#basic" data-page="basic">🎒 기초 과정</a>
       <a class="nav-item" href="#advanced" data-page="advanced">🎓 심화 과정</a>
       <a class="nav-item" href="#prompts" data-page="prompts">🧰 바이브코딩 프롬프트</a>
+      <a class="nav-item" href="#works" data-page="works">🕹️ 바이브코딩 작품</a>
       <a class="nav-item" href="#agent" data-page="agent">🤖 게임 기획</a>
       <a class="nav-item" href="#resources" data-page="resources">📚 자료실·운영 체크</a>
     </nav>
@@ -663,6 +710,7 @@
           <a class="button outline page-link" href="#basic" data-page="basic">기초 과정 보기</a>
           <a class="button outline page-link" href="#advanced" data-page="advanced">심화 과정 보기</a>
           <a class="button outline page-link" href="#prompts" data-page="prompts">프롬프트 보기</a>
+          <a class="button outline page-link" href="#works" data-page="works">작품 보기</a>
         </div>
       </div>
     </section>
@@ -1141,6 +1189,82 @@ React, Tailwind CSS, Framer Motion을 사용하여 단일 파일(Standalone HTML
 4. **[화면 4: 게임 플레이 화면 - 우측 영역]**
    - "AI 카메라 동작 중" 피드백 UI (또는 연결 창 버튼). 작동 중에는 핑(Ping) 인디케이터 깜빡임 처리.
    - 우측 하단에 포즈 매뉴얼 가이드 (이모지와 동작 매핑 텍스트).</pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="works" class="page">
+      <div class="page-title">
+        <h2>바이브코딩 작품</h2>
+        <p>프롬프트로 만든 예시 작품을 바로 실행하거나 HTML 파일로 내려받을 수 있습니다.</p>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title"><span class="badge">일반</span><h3>일반 바이브코딩 작품</h3></div>
+        <div class="work-grid">
+          <article class="work-card">
+            <span class="badge success">Media Art</span>
+            <h3>우리 반 바닷속 그림 놀이터</h3>
+            <p>학생 그림을 바닷속 오브젝트처럼 움직이게 만드는 미디어아트 웹앱입니다.</p>
+            <div class="work-actions">
+              <a class="button primary" href="우리반 바닷속.html" target="_blank" rel="noopener noreferrer">실행하기</a>
+              <a class="button outline" href="우리반 바닷속.html" download>HTML 받기</a>
+            </div>
+          </article>
+          <article class="work-card">
+            <span class="badge success">Puzzle</span>
+            <h3>헥사 게임</h3>
+            <p>과일 블록을 맞추는 헥사 스타일 퍼즐 게임 예시입니다.</p>
+            <div class="work-actions">
+              <a class="button primary" href="헥사 게임.html" target="_blank" rel="noopener noreferrer">실행하기</a>
+              <a class="button outline" href="헥사 게임.html" download>HTML 받기</a>
+            </div>
+          </article>
+          <article class="work-card">
+            <span class="badge success">Quiz</span>
+            <h3>디지털 윤리 퀴즈</h3>
+            <p>디지털 윤리 주제를 게임처럼 풀어보는 퀴즈형 웹앱입니다.</p>
+            <div class="work-actions">
+              <a class="button primary" href="디지털윤리 퀴즈.html" target="_blank" rel="noopener noreferrer">실행하기</a>
+              <a class="button outline" href="디지털윤리 퀴즈.html" download>HTML 받기</a>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title"><span class="badge">웹캠</span><h3>노트북캠 활용 작품</h3></div>
+        <div class="work-grid">
+          <article class="work-card">
+            <span class="badge success">Hand Tracking</span>
+            <h3>에어 캔버스</h3>
+            <p>노트북 웹캠으로 손 움직임을 인식해 허공에 그림을 그리는 웹앱입니다.</p>
+            <div class="work-actions">
+              <a class="button primary" href="air-canvas.html" target="_blank" rel="noopener noreferrer">실행하기</a>
+              <a class="button outline" href="air-canvas.html" download>HTML 받기</a>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title"><span class="badge">AI캠</span><h3>AI캠 연동 작품</h3></div>
+        <div class="work-grid">
+          <article class="work-card">
+            <span class="badge success">Web Serial</span>
+            <h3>AI캠 포즈 테트리스</h3>
+            <p>AI캠 포즈 신호를 웹 시리얼로 받아 조작하는 테트리스 게임입니다.</p>
+            <div class="work-actions">
+              <a class="button primary" href="AI캠_포즈_테트리스.html" target="_blank" rel="noopener noreferrer">실행하기</a>
+              <a class="button outline" href="AI캠_포즈_테트리스.html" download>HTML 받기</a>
+            </div>
+          </article>
+          <article class="work-card">
+            <span class="badge success">Web Serial</span>
+            <h3>AI캠 포즈 머지 1024</h3>
+            <p>AI캠 포즈 신호로 블록을 움직이며 숫자를 합치는 머지 게임입니다.</p>
+            <div class="work-actions">
+              <a class="button primary" href="AI캠_포즈_머지1024.html" target="_blank" rel="noopener noreferrer">실행하기</a>
+              <a class="button outline" href="AI캠_포즈_머지1024.html" download>HTML 받기</a>
+            </div>
           </article>
         </div>
       </div>

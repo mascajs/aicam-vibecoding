@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 포즈 머지 1024 - 최종 실행 버전</title>
+    
+    <!-- 오류 발생 시 화면에 표시하여 원인을 알 수 있게 하는 안전장치 -->
+    <script>
+        window.onerror = function(msg, url, line) {
+            document.write('<div style="color:red; background:white; padding:20px; z-index:9999; position:absolute; top:0; left:0; right:0;">에러가 발생했습니다: ' + msg + '<br>줄 번호: ' + line + '</div>');
+        };
+    </script>
+
+    <!-- Tailwind CSS (가장 안정적인 CDN 사용) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Vue 3 (React의 Babel 변환 과정에서 발생하는 브라우저 보안 차단을 피하기 위해, 변환 없이 바로 실행되는 Vue 사용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0a0b1e; color: white; overflow-x: hidden; }
+        .mesh-bg {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background: radial-gradient(circle at 20% 30%, #1e2a78 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, #4c1d95 0%, transparent 40%),
+                        radial-gradient(circle at 50% 50%, #1e1b4b 0%, transparent 100%);
+        }
+        /* 블록 애니메이션 부드럽게 처리 */
+        .block-anim {
+            transition: all 0.15s ease-in-out;
+        }
+        /* Vue 로딩 전 깜빡임 방지 */
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <!-- 인트로 화면 -->
+        <div v-if="gameState === 'intro'" class="min-h-screen flex items-center justify-center p-4 relative">
+            <div class="mesh-bg"></div>
+            <div class="z-10 bg-white/5 backdrop-blur-[12px] border border-white/10 rounded-[24px] p-8 shadow-2xl w-full max-w-[420px] flex flex-col items-center text-center">
+                <h1 class="text-[32px] font-bold text-[#00f2ff] mb-2">AI 포즈 머지 1024</h1>
+                <p class="text-white/60 mb-8">방향키로 게임을 플레이하세요!</p>
+                <div class="flex flex-col gap-3 w-full mt-4">
+                    <button @click="resetGame" class="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-4 rounded-xl border border-white/10 transition-all text-lg cursor-pointer">게임 시작하기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 화면 -->
+        <div v-else class="min-h-screen flex flex-col items-center justify-center p-4 lg:p-8 relative">
+            <div class="mesh-bg"></div>
+            <div class="w-full max-w-[1024px] flex flex-col lg:flex-row gap-6 relative z-10 items-center lg:items-start justify-center">
+                
+                <!-- 좌측 상태 패널 -->
+                <div class="w-full max-w-[420px] lg:w-[280px] flex-shrink-0 flex flex-col gap-4">
+                    <div class="bg-white/5 backdrop-blur-[12px] border border-white/10 rounded-[24px] p-6 shadow-xl">
+                        <h1 class="text-[22px] font-bold text-[#00f2ff]">AI 포즈 머지</h1>
+                        <p class="text-[12px] text-white/50 mb-5">레벨 {{ currentLevel }}: 타임어택</p>
+                        
+                        <div class="flex gap-3 mb-4">
+                            <div class="bg-white/10 rounded-[16px] p-3 flex-1 text-center">
+                                <div class="text-[10px] text-white/50 font-bold uppercase mb-1">레벨</div>
+                                <div class="text-[20px] font-bold text-[#00f2ff]">{{ currentLevel }}</div>
+                            </div>
+                            <div class="bg-white/10 rounded-[16px] p-3 flex-1 text-center">
+                                <div class="text-[10px] text-white/50 font-bold uppercase mb-1">점수</div>
+                                <div class="text-[20px] font-bold text-[#00f2ff]">{{ score }}</div>
+                            </div>
+                        </div>
+
+                        <!-- 타이머 게이지 -->
+                        <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mb-2">
+                            <div class="h-full bg-gradient-to-r from-[#00f2ff] to-[#0066ff] transition-all duration-1000" 
+                                 :style="{ width: currentLevel >= 5 && timeRemaining !== null ? ((timeRemaining / 180) * 100) + '%' : '100%' }">
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-white/60 mb-4">
+                            <span>{{ currentLevel >= 5 ? formatTime(timeRemaining) : '--:--' }}</span>
+                            <span>03:00</span>
+                        </div>
+                        
+                        <button @click="resetGame" class="w-full bg-white/10 hover:bg-white/20 text-[#00f2ff] text-[12px] font-bold py-2 rounded-xl border border-white/10 cursor-pointer">다시 시작</button>
+                    </div>
+                </div>
+
+                <!-- 중앙 게임 보드 -->
+                <div class="w-full max-w-[420px] lg:max-w-[460px] relative">
+                    <div class="relative bg-white/5 p-4 rounded-[24px] border border-white/10 shadow-xl backdrop-blur-[12px] aspect-square w-full">
+                        
+                        <!-- 빈 배경 그리드 -->
+                        <div class="grid grid-cols-4 grid-rows-4 gap-3 w-full h-full">
+                            <div v-for="i in 16" :key="i" class="bg-white/5 rounded-xl border-[0.5px] border-white/5 shadow-inner"></div>
+                        </div>
+                        
+                        <!-- 움직이는 블록들 -->
+                        <div class="absolute inset-4">
+                            <div v-for="block in blocks" :key="block.id"
+                                 :class="['block-anim absolute rounded-[12px] flex items-center justify-center font-[800] text-[32px] shadow-[inset_0_0_10px_rgba(255,255,255,0.1)] [text-shadow:0_2px_4px_rgba(0,0,0,0.3)]', getBlockClass(block.value)]"
+                                 :style="getBlockStyle(block)">
+                                {{ block.value }}
+                            </div>
+                        </div>
+                        
+                        <!-- 게임 오버 / 승리 팝업 -->
+                        <div v-if="gameState !== 'playing'" class="absolute inset-0 z-50 bg-[#0a0b1e]/90 backdrop-blur-md rounded-[24px] flex flex-col items-center justify-center">
+                            <h2 :class="['text-[40px] font-extrabold mb-4', gameState === 'won' ? 'text-[#00f2ff]' : 'text-white']">
+                                {{ gameState === 'won' ? '승리!' : '게임 오버' }}
+                            </h2>
+                            <p class="text-white/70 mb-8">최종 점수: {{ score }}</p>
+                            <button @click="resetGame" class="bg-[#00f2ff]/20 hover:bg-[#00f2ff]/30 text-[#00f2ff] border border-[#00f2ff]/50 font-bold py-3 px-8 rounded-xl cursor-pointer">다시 하기</button>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                <!-- 우측 제어 패널 (시리얼 카메라) -->
+                <div class="w-full max-w-[420px] lg:w-[280px] flex flex-col gap-4">
+                    <div class="flex flex-col gap-3 w-full">
+                        <div v-if="serialConnected" class="w-full bg-[#00f2ff]/10 text-[#00f2ff] border border-[#00f2ff]/30 text-[12px] font-bold py-3 px-4 rounded-xl text-center flex items-center justify-center gap-3">
+                            AI 카메라 동작 중
+                        </div>
+                        <button v-else @click="connectSerial" class="w-full bg-[#00f2ff]/10 hover:bg-[#00f2ff]/20 text-[#00f2ff] border border-[#00f2ff]/30 text-[12px] font-bold py-3 px-4 rounded-xl transition-all cursor-pointer">
+                            🔌 AI 카메라 연결 (시리얼)
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 순수 자바스크립트 로직 -->
+    <script>
+        const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+
+        createApp({
+            setup() {
+                const blocks = ref([]);
+                const score = ref(0);
+                const highestAchieved = ref(2);
+                const gameState = ref('intro');
+                const timeRemaining = ref(null);
+                const serialConnected = ref(false);
+
+                const currentLevel = computed(() => Math.max(1, Math.floor(Math.log2(highestAchieved.value) - 5)));
+
+                const getNewBlockValue = (level) => {
+                    const rand = Math.random();
+                    if (level <= 2) return 2;
+                    if (level >= 8) return rand < 0.8 ? 4 : 8;
+                    return rand < (0.05 * (level - 2)) ? 4 : 2;
+                };
+
+                const spawnRandom = (currentBlocks, level) => {
+                    const alive = currentBlocks.filter(b => !b.dying);
+                    const grid = new Set(alive.map(b => b.r + ',' + b.c));
+                    const emptySpots = [];
+                    for (let r = 0; r < 4; r++) {
+                        for (let c = 0; c < 4; c++) {
+                            if (!grid.has(r + ',' + c)) emptySpots.push({ r, c });
+                        }
+                    }
+                    if (emptySpots.length === 0) return currentBlocks;
+                    const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+                    return [...currentBlocks, {
+                        id: Math.random().toString(36).substring(2, 9),
+                        value: getNewBlockValue(level),
+                        r: spot.r, c: spot.c, 
+                        isNew: true, dying: false, mergedThisTurn: false
+                    }];
+                };
+
+                const resetGame = () => {
+                    score.value = 0;
+                    highestAchieved.value = 2;
+                    gameState.value = 'playing';
+                    timeRemaining.value = null;
+                    let initialBlocks = spawnRandom([], 1);
+                    initialBlocks = spawnRandom(initialBlocks, 1);
+                    blocks.value = initialBlocks;
+                };
+
+                let timerId = null;
+                watch([currentLevel, gameState], () => {
+                    if (gameState.value !== 'playing') return;
+                    if (currentLevel.value >= 5) {
+                        if (timeRemaining.value === null) {
+                            timeRemaining.value = 180; // 3분 타이머
+                        }
+                        if (!timerId) {
+                            timerId = setInterval(() => {
+                                if (timeRemaining.value !== null) {
+                                    if (timeRemaining.value <= 1) {
+                                        gameState.value = 'over';
+                                        timeRemaining.value = 0;
+                                        clearInterval(timerId);
+                                        timerId = null;
+                                    } else {
+                                        timeRemaining.value--;
+                                    }
+                                }
+                            }, 1000);
+                        }
+                    }
+                });
+
+                const moveBlocks = (dir) => {
+                    if (gameState.value !== 'playing') return;
+
+                    let currentBlocks = blocks.value;
+                    const alive = currentBlocks.filter(b => !b.dying);
+                    let mergeScore = 0;
+                    let moved = false;
+                    const newBlocks = [];
+
+                    for (let line = 0; line < 4; line++) {
+                        const lineBlocks = alive.filter(b => dir === 'LEFT' || dir === 'RIGHT' ? b.r === line : b.c === line);
+                        lineBlocks.sort((a, b) => {
+                            const aPos = dir === 'LEFT' || dir === 'RIGHT' ? a.c : a.r;
+                            const bPos = dir === 'LEFT' || dir === 'RIGHT' ? b.c : b.r;
+                            return (dir === 'LEFT' || dir === 'UP') ? aPos - bPos : bPos - aPos;
+                        });
+
+                        let target = (dir === 'LEFT' || dir === 'UP') ? 0 : 3;
+                        const step = (dir === 'LEFT' || dir === 'UP') ? 1 : -1;
+                        let lastBlock = null;
+
+                        for (const block of lineBlocks) {
+                            if (lastBlock && lastBlock.value === block.value && !lastBlock.mergedThisTurn) {
+                                lastBlock.value *= 2;
+                                lastBlock.mergedThisTurn = true;
+                                mergeScore += lastBlock.value;
+                                newBlocks.push({ ...block, r: lastBlock.r, c: lastBlock.c, dying: true });
+                                moved = true;
+                            } else {
+                                const r = (dir === 'LEFT' || dir === 'RIGHT') ? line : target;
+                                const c = (dir === 'UP' || dir === 'DOWN') ? line : target;
+                                if (block.r !== r || block.c !== c) moved = true;
+                                const updatedBlock = { ...block, r, c, mergedThisTurn: false, isNew: false, dying: false };
+                                newBlocks.push(updatedBlock);
+                                lastBlock = updatedBlock;
+                                target += step;
+                            }
+                        }
+                    }
+
+                    if (moved) {
+                        const blocksAfterSpawn = spawnRandom(newBlocks, currentLevel.value);
+                        score.value += mergeScore;
+                        const aliveNow = blocksAfterSpawn.filter(b => !b.dying);
+                        const maxVal = Math.max(...aliveNow.map(b => b.value));
+                        
+                        if (maxVal > highestAchieved.value) {
+                            const newLvl = Math.max(1, Math.floor(Math.log2(maxVal) - 5));
+                            const oldLvl = Math.max(1, Math.floor(Math.log2(highestAchieved.value) - 5));
+                            if (newLvl > oldLvl && newLvl >= 5) {
+                                timeRemaining.value = (timeRemaining.value !== null ? timeRemaining.value + 15 : null);
+                            }
+                            highestAchieved.value = maxVal;
+                        }
+
+                        if (maxVal >= 8192) gameState.value = 'won';
+
+                        if (aliveNow.length === 16) {
+                            let possibleMove = false;
+                            for (let r = 0; r < 4; r++) {
+                                for (let c = 0; c < 4; c++) {
+                                    const val = aliveNow.find(b => b.r === r && b.c === c)?.value;
+                                    if (!val) continue;
+                                    if (c < 3 && val === aliveNow.find(b => b.r === r && b.c === c + 1)?.value) possibleMove = true;
+                                    if (r < 3 && val === aliveNow.find(b => b.r + 1 === r && b.c === c)?.value) possibleMove = true;
+                                }
+                            }
+                            if (!possibleMove) gameState.value = 'over';
+                        }
+                        blocks.value = blocksAfterSpawn;
+                    }
+                };
+
+                const handleKey = (e) => {
+                    if (e.key === 'ArrowUp') moveBlocks('UP');
+                    else if (e.key === 'ArrowDown') moveBlocks('DOWN');
+                    else if (e.key === 'ArrowLeft') moveBlocks('LEFT');
+                    else if (e.key === 'ArrowRight') moveBlocks('RIGHT');
+                };
+
+                onMounted(() => {
+                    window.addEventListener('keydown', handleKey);
+                });
+
+                onUnmounted(() => {
+                    window.removeEventListener('keydown', handleKey);
+                    if (timerId) clearInterval(timerId);
+                });
+
+                const connectSerial = async () => {
+                    try {
+                        if (!('serial' in navigator)) {
+                            alert("⚠️ 크롬/엣지 보안 정책 안내\n\n바탕화면에서 파일을 직접 실행(file://)할 때는 크롬 브라우저가 카메라(시리얼) 연결을 차단합니다.\n\n안전한 호스팅 서버(https)에 올리거나 로컬 서버를 통해서만 카메라 연결이 가능하므로, 우선은 키보드 방향키로 플레이해주세요!");
+                            return;
+                        }
+                        const port = await navigator.serial.requestPort();
+                        await port.open({ baudRate: 115200 });
+                        serialConnected.value = true;
+                        const reader = port.readable.getReader();
+                        const decoder = new TextDecoder();
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) { reader.releaseLock(); break; }
+                            if (value) {
+                                const str = decoder.decode(value);
+                                for (let char of str) {
+                                    if (char === '0') moveBlocks('RIGHT');
+                                    else if (char === '1') moveBlocks('LEFT');
+                                    else if (char === '2') moveBlocks('DOWN');
+                                    else if (char === '3') moveBlocks('UP');
+                                }
+                            }
+                        }
+                    } catch (err) { console.error(err); serialConnected.value = false; }
+                };
+
+                const formatTime = (s) => {
+                    if (s === null) return '--:--';
+                    return Math.floor(s/60).toString().padStart(2,'0') + ':' + (s%60).toString().padStart(2,'0');
+                };
+
+                const getBlockClass = (val) => {
+                    const classes = {
+                        2: 'bg-[#eee4da] text-[#776e65]', 4: 'bg-[#ede0c8] text-[#776e65]', 8: 'bg-[#f2b179] text-white',
+                        16: 'bg-[#f59563] text-white', 32: 'bg-[#f67c5f] text-white', 64: 'bg-[#f65e3b] text-white',
+                        128: 'bg-[#edcf72] text-white shadow-[0_0_15px_#edcf72]', 256: 'bg-[#edcc61] text-white shadow-[0_0_20px_#edcc61]',
+                        512: 'bg-[#edc850] text-white shadow-[0_0_25px_#edc850]', 1024: 'bg-[#edc53f] text-white shadow-[0_0_30px_#edc53f]',
+                        2048: 'bg-[#edc22e] text-white shadow-[0_0_35px_#edc22e]', 4096: 'bg-[#edc01d] text-white shadow-[0_0_40px_#edc01d]',
+                        8192: 'bg-[#edbc0c] text-white shadow-[0_0_45px_#edbc0c]',
+                    };
+                    return classes[val] || "bg-[#edbc0c] text-white shadow-[0_0_20px_#edbc0c]";
+                };
+
+                const getBlockStyle = (block) => {
+                    const cellPos = (index) => 'calc(' + (index * 25) + '% + ' + (index * 3) + 'px)';
+                    const size = 'calc(25% - 9px)';
+                    const fontSize = block.value >= 1024 ? '1.5rem' : (block.value >= 128 ? '1.75rem' : '2rem');
+                    
+                    const scale = block.dying ? 0.5 : (block.isNew ? 0.5 : (block.mergedThisTurn ? 1.15 : 1));
+                    
+                    return {
+                        width: size, height: size, 
+                        left: cellPos(block.c), top: cellPos(block.r),
+                        fontSize: fontSize,
+                        opacity: block.dying ? 0 : 1,
+                        transform: 'scale(' + scale + ')',
+                        zIndex: block.dying ? 0 : 10
+                    };
+                };
+
+                // 블록 애니메이션 초기화 (Vue 반응성 트릭)
+                watch(blocks, (newBlocks) => {
+                    let needsUpdate = false;
+                    newBlocks.forEach(b => {
+                        if (b.isNew || b.mergedThisTurn) {
+                            needsUpdate = true;
+                            setTimeout(() => {
+                                b.isNew = false;
+                                b.mergedThisTurn = false;
+                            }, 150);
+                        }
+                    });
+                }, { deep: true });
+
+                return {
+                    blocks, score, currentLevel, gameState, timeRemaining, serialConnected,
+                    resetGame, connectSerial, formatTime, getBlockClass, getBlockStyle
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

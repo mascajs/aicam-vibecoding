@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fruit Hexa Dash - Single HTML</title>
+  
+  <!-- 5. 화면 에러 안전장치 (window.onerror) -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      var errDiv = document.createElement('div');
+      errDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#ff4d4d;color:white;padding:20px;z-index:99999;font-family:monospace;white-space:pre-wrap;font-size:14px;box-shadow:0 4px 10px rgba(0,0,0,0.5);';
+      errDiv.innerText = '🛑 에러가 발생했습니다:\n' + message + '\n\n위치: ' + source + ' (Line ' + lineno + ')\n\n' + (error && error.stack ? error.stack : '');
+      document.body.appendChild(errDiv);
+      return true;
+    };
+  </script>
+
+  <!-- 3. Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 2. Vue 3 Global Build (CDN 방식, React/Babel 미사용) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  
+  <style>
+    [v-cloak] { display: none; }
+    body { background-color: #121214; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; user-select: none; }
+    
+    /* 게임 블록 스타일 및 애니메이션 */
+    .fruit-cell { animation: popIn 0.15s ease-out; }
+    @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .fruit-cell::after { content: ''; position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; background: rgba(255,255,255,0.4); border-radius: 1px; }
+    
+    .f-1 { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+    .f-2 { background-color: #f97316; box-shadow: 0 0 10px #f97316; }
+    .f-3 { background-color: #facc15; box-shadow: 0 0 10px #facc15; }
+    .f-4 { background-color: #4ade80; box-shadow: 0 0 10px #4ade80; }
+    .f-5 { background-color: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+    .f-6 { background-color: #a855f7; box-shadow: 0 0 10px #a855f7; }
+    .f-7 { background-color: #555; border: 2px solid #333; box-shadow: none; }
+    .f-7::after { display: none; }
+  </style>
+</head>
+<body>
+  <!-- 1. 완벽한 단일 파일 (Single HTML) 내 구조 -->
+  <div id="app" v-cloak class="h-screen flex flex-col">
+    <!-- Header -->
+    <header class="h-[80px] shrink-0 flex items-center justify-between px-10 border-b-2 border-[#2d2d33] bg-gradient-to-r from-[#121214] via-[#1e1e22] to-[#121214]">
+      <h1 class="text-[24px] sm:text-[32px] font-black tracking-[4px] text-[#ff4d4d] cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap" style="text-shadow: 4px 4px 0px #4a0000" @click="goHome">
+        FRUIT HEXA DASH
+      </h1>
+      <nav class="flex items-center gap-2 truncate">
+        <button :class="activeTab === 'GAME_MENU' || activeTab === 'GAME' ? 'bg-[#1e1e22] text-[#e2e8f0] border-[#3f3f46]' : 'text-zinc-500 border-transparent'" class="px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-sm transition-colors border-2 hover:text-[#e2e8f0]" @click="goHome">Play Game</button>
+        <button :class="activeTab === 'GDD' ? 'bg-[#1e1e22] text-[#e2e8f0] border-[#3f3f46]' : 'text-zinc-500 border-transparent'" class="hidden sm:block px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-sm transition-colors border-2 hover:text-[#e2e8f0]" @click="activeTab = 'GDD'">Design Doc</button>
+      </nav>
+    </header>
+
+    <main class="flex-1 flex flex-col overflow-y-auto relative">
+      <!-- GAME MENU -->
+      <div v-if="activeTab === 'GAME_MENU'" class="flex flex-col items-center justify-center flex-1 gap-12 p-8">
+        <h2 class="text-4xl md:text-5xl font-black tracking-[4px] text-[#e2e8f0]" style="text-shadow: 3px 3px 0px #1e1e22">SELECT MODE</h2>
+        <div class="flex flex-col sm:flex-row gap-6">
+          <button @click="startGame('single')" class="group relative px-8 py-6 bg-[#1e1e22] border-[3px] border-[#3f3f46] hover:border-[#ff4d4d] rounded-md flex flex-col items-center gap-3 transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(255,77,77,0.2)] w-64">
+            <div class="text-4xl mb-2 text-[#e2e8f0] group-hover:text-[#ff4d4d] transition-colors">1P</div>
+            <div class="text-xl font-bold uppercase tracking-widest text-[#e2e8f0]">Survival</div>
+            <div class="text-[12px] text-zinc-500 text-center opacity-80 uppercase leading-relaxed">Score Attack<br/>Arrow Keys</div>
+          </button>
+          <button @click="startGame('versus')" class="group relative px-8 py-6 bg-[#1e1e22] border-[3px] border-[#3f3f46] hover:border-[#ff4d4d] rounded-md flex flex-col items-center gap-3 transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(255,77,77,0.2)] w-64">
+            <div class="text-4xl mb-2 text-[#e2e8f0] group-hover:text-[#ff4d4d] transition-colors">2P</div>
+            <div class="text-xl font-bold uppercase tracking-widest text-[#e2e8f0]">Versus</div>
+            <div class="text-[12px] text-zinc-500 text-center opacity-80 uppercase leading-relaxed">Local Battle<br/>WASD & Arrows</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- GAME CONTAINER -->
+      <div v-if="activeTab === 'GAME'" class="flex-1 flex justify-center items-start pt-[20px]">
+        <div :class="mode === 'versus' ? 'w-full max-w-5xl grid grid-cols-[1fr_120px_1fr] gap-[20px]' : 'flex justify-center'">
+          <div class="flex justify-end">
+            <hexa-board :state="p1.state" :reverse="false"></hexa-board>
+          </div>
+          
+          <div v-if="mode === 'versus'" class="flex flex-col items-center justify-center h-[476px] gap-10 text-center text-[#3f3f46]">
+            <div class="text-[48px] font-black -rotate-12 select-none">VS</div>
+            <div v-if="p1.state.lastCombo > 1" class="bg-[#ff4d4d] text-white px-2 py-1 text-[12px] font-bold rounded-sm animate-pulse shadow-[0_0_10px_#ff4d4d]">
+              P1 COMBO x{{p1.state.lastCombo}}!
+            </div>
+            <div v-if="p2.state.lastCombo > 1" class="bg-[#ff4d4d] text-white px-2 py-1 text-[12px] font-bold rounded-sm animate-pulse shadow-[0_0_10px_#ff4d4d]">
+              P2 COMBO x{{p2.state.lastCombo}}!
+            </div>
+            <div class="text-[10px] opacity-40 leading-[1.6] mt-auto mb-10">
+              P1: A/D - Move<br/>S - Drop<br/>W - Cycle<br/><br/>P2: ARROWS - Move<br/>DOWN - Drop<br/>UP - Cycle
+            </div>
+          </div>
+          
+          <div v-if="mode === 'versus'" class="flex justify-start">
+            <hexa-board :state="p2.state" :reverse="true"></hexa-board>
+          </div>
+        </div>
+      </div>
+
+      <!-- GDD Document -->
+      <div v-if="activeTab === 'GDD'" class="max-w-4xl w-full mx-auto bg-[#1e1e22] border-2 border-[#3f3f46] rounded-md p-8 lg:p-12 my-8">
+        <h1 class="text-2xl text-[#ff4d4d] font-bold mb-4 uppercase tracking-wider">과일 헥사 대동고 (Fruit Hexa Dash) - GDD</h1>
+        <p class="mb-6 opacity-80 text-sm border-l-4 border-[#ff4d4d] pl-4">본 문서는 로컬 파일 단일 HTML 환경(Vue 3 CDN)으로 컨버팅된 게임 문서입니다.</p>
+        <ul class="list-disc pl-5 space-y-3 opacity-90">
+            <li><strong class="text-white">장르:</strong> 떨어지는 블록 매칭 퍼즐</li>
+            <li><strong class="text-white">플랫폼:</strong> 데스크톱 브라우저 (단일 HTML 실행 지원)</li>
+            <li><strong class="text-white">규칙:</strong> 가로, 세로, 대각선 방향으로 같은 과일 3개 이상 매칭 시 제거되며 콤보 연쇄 반응이 일어납니다.</li>
+            <li><strong class="text-white">조작:</strong> 1인용 (방향키), 2인용 (P1: WASD / P2: 화살표)</li>
+            <li><strong class="text-white">대전 모드:</strong> 2콤보 이상 발생 시 상대의 맨 아래에 지워지지 않는 돌(🪨) 블록이 밀려 올라갑니다.</li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // 4. 보안 정책(API) 예외 처리 (try-catch & alert)
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.location.protocol === 'file:') {
+            try {
+                // 로컬 환경에서 차단되기 쉬운 API(WebRTC, 미디어 등) 접근 테스트
+                if (window.navigator && window.navigator.mediaDevices && !window.navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Web API Restricted by CORS/Security Rules");
+                }
+            } catch (error) {
+                alert("안내: 현재 로컬(file://) 환경에서 실행 중입니다.\n크롬 브라우저 보안 정책으로 인해 카메라, 마이크 등 일부 Web API 접근이 차단될 수 있습니다.\n\n게임 플레이(조작 및 렌더링) 자체에는 지장이 없습니다.");
+            }
+        }
+    });
+
+    const { createApp, ref, reactive, onMounted, onUnmounted, watch } = Vue;
+
+    // --- 게임 엔진 구현부 (Vue 3 Composition API 패턴) ---
+    function useEngine() {
+        const state = reactive({
+            board: [],
+            currentBlock: null,
+            nextBlock: [],
+            score: 0,
+            level: 1,
+            lastCombo: 0,
+            comboTrigger: 0,
+            gameOver: false,
+            isProcessing: false
+        });
+
+        const WIDTH = 6;
+        const HEIGHT = 13;
+        let fallInterval = null;
+
+        const getRandomFruits = () => [
+            Math.floor(Math.random()*6)+1, 
+            Math.floor(Math.random()*6)+1, 
+            Math.floor(Math.random()*6)+1
+        ];
+
+        const init = () => {
+            state.board = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(0));
+            state.nextBlock = getRandomFruits();
+            state.score = 0;
+            state.level = 1;
+            state.lastCombo = 0;
+            state.comboTrigger = 0;
+            state.gameOver = false;
+            state.isProcessing = false;
+        };
+
+        const spawn = () => {
+            if (state.board[0][Math.floor(WIDTH/2)] !== 0 || state.board[1][Math.floor(WIDTH/2)] !== 0) {
+                state.gameOver = true;
+                stop();
+                return;
+            }
+            state.currentBlock = { x: Math.floor(WIDTH/2), y: -2, fruits: [...state.nextBlock] };
+            state.nextBlock = getRandomFruits();
+            updateSpeed();
+        };
+
+        const updateSpeed = () => {
+            if (fallInterval) clearInterval(fallInterval);
+            const speed = Math.max(150, 800 - (state.level - 1) * 50);
+            fallInterval = setInterval(() => { moveDown(); }, speed);
+        };
+
+        const checkMatches = () => {
+            const matched = new Set();
+            const dirs = [[0,1], [1,0], [1,1], [1,-1]];
+            for (let r = 0; r < HEIGHT; r++) {
+                for (let c = 0; c < WIDTH; c++) {
+                    const color = state.board[r][c];
+                    if (color === 0 || color === 7) continue;
+                    for (const [dr, dc] of dirs) {
+                        let chain = [[r,c]];
+                        let step = 1;
+                        while(true) {
+                            const nr = r + dr*step;
+                            const nc = c + dc*step;
+                            if (nr >= 0 && nr < HEIGHT && nc >= 0 && nc < WIDTH && state.board[nr][nc] === color) {
+                                chain.push([nr,nc]);
+                                step++;
+                            } else { break; }
+                        }
+                        if (chain.length >= 3) {
+                            chain.forEach(pos => matched.add(pos[0] + "," + pos[1]));
+                        }
+                    }
+                }
+            }
+            return Array.from(matched).map(str => {
+                const parts = str.split(",");
+                return [parseInt(parts[0]), parseInt(parts[1])];
+            });
+        };
+
+        const applyGravity = () => {
+            for (let c = 0; c < WIDTH; c++) {
+                let emptyRow = HEIGHT - 1;
+                for (let r = HEIGHT - 1; r >= 0; r--) {
+                    if (state.board[r][c] !== 0) {
+                        const temp = state.board[r][c];
+                        state.board[r][c] = 0;
+                        state.board[emptyRow][c] = temp;
+                        emptyRow--;
+                    }
+                }
+            }
+        };
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        const settleBlock = async () => {
+            state.isProcessing = true;
+            if (fallInterval) clearInterval(fallInterval);
+            
+            const { x, y, fruits } = state.currentBlock;
+            for (let i = 0; i < 3; i++) {
+                const by = y + i;
+                if (by >= 0 && by < HEIGHT) {
+                    state.board[by][x] = fruits[i];
+                }
+            }
+            state.currentBlock = null;
+
+            let currentCombo = 0;
+            while(true) {
+                const matches = checkMatches();
+                if (matches.length === 0) break;
+                
+                currentCombo++;
+                state.score += matches.length * 100 * currentCombo;
+                state.level = Math.floor(state.score / 1000) + 1;
+
+                matches.forEach(pos => { state.board[pos[0]][pos[1]] = 0; });
+                await sleep(200);
+                applyGravity();
+                await sleep(200);
+            }
+            
+            state.lastCombo = currentCombo;
+            state.comboTrigger++; // watch 트리거용
+            
+            state.isProcessing = false;
+            if (!state.gameOver) spawn();
+        };
+
+        const moveDown = () => {
+            if (state.isProcessing || !state.currentBlock || state.gameOver) return;
+            let collision = false;
+            for (let i=0; i<3; i++) {
+                const ny = state.currentBlock.y + i + 1;
+                if (ny >= HEIGHT || (ny >= 0 && state.board[ny][state.currentBlock.x] !== 0)) {
+                    collision = true;
+                    break;
+                }
+            }
+            if (collision) { settleBlock(); } 
+            else { state.currentBlock.y += 1; }
+        };
+
+        const moveLeft = () => {
+            if (state.isProcessing || !state.currentBlock || state.gameOver) return;
+            const nx = state.currentBlock.x - 1;
+            if (nx < 0) return;
+            for(let i=0; i<3; i++) {
+                const ny = state.currentBlock.y + i;
+                if (ny >= 0 && state.board[ny][nx] !== 0) return;
+            }
+            state.currentBlock.x = nx;
+        };
+
+        const moveRight = () => {
+            if (state.isProcessing || !state.currentBlock || state.gameOver) return;
+            const nx = state.currentBlock.x + 1;
+            if (nx >= WIDTH) return;
+            for(let i=0; i<3; i++) {
+                const ny = state.currentBlock.y + i;
+                if (ny >= 0 && state.board[ny][nx] !== 0) return;
+            }
+            state.currentBlock.x = nx;
+        };
+
+        const cycle = () => {
+            if (state.isProcessing || !state.currentBlock || state.gameOver) return;
+            const f = state.currentBlock.fruits;
+            state.currentBlock.fruits = [f[2], f[0], f[1]];
+        };
+
+        const addGarbageLines = (lines) => {
+            if (state.isProcessing || state.gameOver) return;
+            for (let i=0; i<lines; i++) {
+                state.board.shift();
+                state.board.push(Array(WIDTH).fill(7));
+            }
+        };
+
+        const stop = () => {
+            if (fallInterval) clearInterval(fallInterval);
+        };
+
+        return { state, init, spawn, moveLeft, moveRight, cycle, drop: moveDown, addGarbageLines, stop };
+    }
+
+    // --- Vue Board Component ---
+    const HexaBoard = {
+        props: ['state', 'reverse'],
+        template: `
+        <div class="flex gap-5 items-start" :class="reverse ? 'flex-row-reverse' : 'flex-row'">
+            <div class="flex flex-col gap-4 min-w-[100px]">
+                <div class="bg-[#1e1e22] border-2 border-[#3f3f46] p-2.5 rounded text-center">
+                    <div class="text-[12px] opacity-60 uppercase mb-1 font-mono">Next</div>
+                    <div class="h-[120px] flex flex-col items-center justify-center gap-1">
+                        <div v-for="(fruit, idx) in state.nextBlock" :key="idx" class="w-[28px] h-[28px] rounded-[4px] relative fruit-cell" :class="'f-' + fruit"></div>
+                    </div>
+                </div>
+                <div class="bg-[#1e1e22] border-2 border-[#3f3f46] p-2.5 rounded text-center">
+                    <div class="text-[12px] opacity-60 uppercase mb-1 font-mono">LVL</div>
+                    <div class="text-[20px] font-bold font-mono">{{ String(state.level).padStart(2, '0') }}</div>
+                </div>
+                <div class="bg-[#1e1e22] border-2 border-[#3f3f46] p-2.5 rounded text-center">
+                    <div class="text-[12px] opacity-60 uppercase mb-1 font-mono">Score</div>
+                    <div class="text-[20px] font-bold font-mono">{{ state.score.toLocaleString() }}</div>
+                </div>
+            </div>
+
+            <div class="relative">
+                <div class="grid bg-[#000] border-4 border-[#3f3f46] shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+                     style="grid-template-columns: repeat(6, 36px); grid-template-rows: repeat(13, 36px); width: 224px; height: 476px;">
+                    <template v-for="r in 13" :key="'r'+r">
+                        <template v-for="c in 6" :key="'c'+c">
+                            <div class="w-[36px] h-[36px] border border-[#1a1a1a] flex items-center justify-center">
+                                <div v-if="getCell(r-1, c-1) !== 0" class="w-[28px] h-[28px] rounded-[4px] relative fruit-cell" :class="'f-' + getCell(r-1, c-1)"></div>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+                
+                <div v-if="state.gameOver" class="absolute inset-0 z-10 flex items-center justify-center bg-[#121214]/80 backdrop-blur-sm">
+                    <div class="text-center">
+                        <h2 class="text-2xl font-black text-[#ff4d4d] drop-shadow-[2px_2px_0_#4a0000] mb-4 font-mono tracking-widest">GAME OVER</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `,
+        methods: {
+            getCell(r, c) {
+                let piece = this.state.board[r][c];
+                if (this.state.currentBlock) {
+                    if (this.state.currentBlock.x === c && r >= this.state.currentBlock.y && r < this.state.currentBlock.y + 3) {
+                        piece = this.state.currentBlock.fruits[r - this.state.currentBlock.y];
+                    }
+                }
+                return piece;
+            }
+        }
+    };
+
+    // --- Vue Root App ---
+    const app = createApp({
+        components: { 'hexa-board': HexaBoard },
+        setup() {
+            const activeTab = ref('GAME_MENU');
+            const mode = ref('single');
+
+            const p1 = useEngine();
+            const p2 = useEngine();
+
+            const startGame = (selectedMode) => {
+                mode.value = selectedMode;
+                activeTab.value = 'GAME';
+                
+                p1.init();
+                p1.spawn();
+
+                if (selectedMode === 'versus') {
+                    p2.init();
+                    p2.spawn();
+                }
+            };
+
+            const goHome = () => {
+                p1.stop();
+                p2.stop();
+                activeTab.value = 'GAME_MENU';
+            };
+
+            const handleKeyDown = (e) => {
+                if (activeTab.value !== 'GAME') return;
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                    e.preventDefault();
+                }
+
+                if (mode.value === 'single') {
+                    if (e.key === 'ArrowLeft') p1.moveLeft();
+                    if (e.key === 'ArrowRight') p1.moveRight();
+                    if (e.key === 'ArrowDown') p1.drop();
+                    if (e.key === 'ArrowUp') p1.cycle();
+                } else {
+                    if (e.key === 'a' || e.key === 'A') p1.moveLeft();
+                    if (e.key === 'd' || e.key === 'D') p1.moveRight();
+                    if (e.key === 's' || e.key === 'S') p1.drop();
+                    if (e.key === 'w' || e.key === 'W') p1.cycle();
+
+                    if (e.key === 'ArrowLeft') p2.moveLeft();
+                    if (e.key === 'ArrowRight') p2.moveRight();
+                    if (e.key === 'ArrowDown') p2.drop();
+                    if (e.key === 'ArrowUp') p2.cycle();
+                }
+            };
+
+            onMounted(() => { window.addEventListener('keydown', handleKeyDown); });
+            onUnmounted(() => {
+                window.removeEventListener('keydown', handleKeyDown);
+                p1.stop(); p2.stop();
+            });
+
+            // 방해 블록(가비지) 로직 감지
+            watch(() => p1.state.comboTrigger, () => {
+                if (mode.value === 'versus' && p1.state.lastCombo > 1) {
+                    p2.addGarbageLines(p1.state.lastCombo - 1);
+                }
+            });
+            watch(() => p2.state.comboTrigger, () => {
+                if (mode.value === 'versus' && p2.state.lastCombo > 1) {
+                    p1.addGarbageLines(p2.state.lastCombo - 1);
+                }
+            });
+
+            return { activeTab, mode, p1, p2, startGame, goHome };
+        }
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
+

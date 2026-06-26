@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>에어 캔버스 (단일 파일)</title>
+  
+  <!-- 1. 에러 방지용 window.onerror (최상단) -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      var errDiv = document.getElementById('global-error');
+      if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = 'global-error';
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '10px';
+        errDiv.style.left = '10px';
+        errDiv.style.backgroundColor = 'rgba(255, 0, 0, 0.9)';
+        errDiv.style.color = 'white';
+        errDiv.style.padding = '15px';
+        errDiv.style.borderRadius = '8px';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.maxWidth = '80%';
+        errDiv.style.wordBreak = 'break-all';
+        document.body.appendChild(errDiv);
+      }
+      errDiv.innerHTML = '<b>에러가 발생했습니다:</b><br>' + message + '<br>Line: ' + lineno;
+      return false;
+    };
+  </script>
+
+  <!-- 2. Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 3. Vue 3 Global Build (type="module" 방지용 CDN) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- MediaPipe Hands (Legacy API, ES Module 불필요) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
+    #video-element { display: none; }
+    #draw-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: block; }
+    /* 안티 앨리어싱 방지 및 커서 렌더링 부드럽게 */
+    canvas { touch-action: none; }
+  </style>
+</head>
+<body>
+  <!-- Vue 애플리케이션 마운트 지점 -->
+  <div id="app" class="relative w-full h-screen">
+    <video id="video-element" autoplay playsinline></video>
+    <canvas id="draw-canvas" ref="canvasRef"></canvas>
+
+    <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-6">
+      
+      <!-- 상단 헤더 및 색상 -->
+      <div class="flex justify-between items-start">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-white mb-1 drop-shadow-md">에어 캔버스</h1>
+          <p class="text-sm text-gray-300 font-medium drop-shadow-sm flex items-center gap-2">
+            <span :class="['w-2 h-2 rounded-full', isLoading ? 'bg-yellow-400' : (cameraActive ? 'bg-green-500' : 'bg-red-500')]"></span>
+            {{ statusMessage }}
+          </p>
+        </div>
+
+        <!-- 색상 팔레트 -->
+        <div class="flex gap-4 p-4 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">
+          <div v-for="color in colors" :key="color.id"
+               class="color-btn w-12 h-12 rounded-full ring-4 transition-all duration-200 flex items-center justify-center cursor-pointer"
+               :class="activeColor === color.value ? 'ring-white scale-110 shadow-lg shadow-white/20' : 'ring-transparent opacity-80'"
+               :style="{ backgroundColor: color.value === 'eraser' ? '#333' : color.value }"
+               :data-color="color.value"
+               @click="selectColor(color.value)">
+            <span v-if="color.id === 'eraser'" class="text-white text-xs font-bold">지우개</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 HUD -->
+      <div class="flex items-end justify-between">
+        <div class="flex flex-col gap-2">
+          <div :class="['flex items-center gap-4 px-4 py-3 rounded-xl border backdrop-blur-md transition-all duration-300',
+                        currentGesture === 'Draw' ? 'bg-white/10 border-white/20 shadow-lg' : 'bg-transparent border-transparent opacity-40']">
+            <div>
+              <p :class="['text-sm font-bold', currentGesture === 'Draw' ? 'text-white' : 'text-gray-300']">그리기 모드</p>
+              <p class="text-xs text-gray-400">검지 손가락을 펴세요</p>
+            </div>
+          </div>
+          <div :class="['flex items-center gap-4 px-4 py-3 rounded-xl border backdrop-blur-md transition-all duration-300',
+                        currentGesture === 'Select' ? 'bg-white/10 border-white/20 shadow-lg' : 'bg-transparent border-transparent opacity-40']">
+            <div>
+              <p :class="['text-sm font-bold', currentGesture === 'Select' ? 'text-white' : 'text-gray-300']">색상 변경</p>
+              <p class="text-xs text-gray-400">손바닥을 펴서 색상 선택</p>
+            </div>
+          </div>
+          <div :class="['flex items-center gap-4 px-4 py-3 rounded-xl border backdrop-blur-md transition-all duration-300',
+                        currentGesture === 'Pause' ? 'bg-white/10 border-white/20 shadow-lg' : 'bg-transparent border-transparent opacity-40']">
+            <div>
+              <p :class="['text-sm font-bold', currentGesture === 'Pause' ? 'text-white' : 'text-gray-300']">그리기 멈춤</p>
+              <p class="text-xs text-gray-400">주먹을 쥐면 자동 해제</p>
+            </div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-400 opacity-60">MediaPipe Legacy API 기반</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted, computed } = Vue;
+
+    createApp({
+      setup() {
+        const isLoading = ref(true);
+        const cameraActive = ref(false);
+        const activeColor = ref('#ef4444');
+        const currentGesture = ref('None'); // Draw, Select, Pause, None
+        
+        const colors = [
+          { id: 'red', value: '#ef4444' },
+          { id: 'orange', value: '#f97316' },
+          { id: 'yellow', value: '#eab308' },
+          { id: 'green', value: '#22c55e' },
+          { id: 'blue', value: '#3b82f6' },
+          { id: 'purple', value: '#a855f7' },
+          { id: 'eraser', value: 'eraser' },
+        ];
+
+        const statusMessage = computed(() => {
+          if (isLoading.value) return 'AI 모델 불러오는 중...';
+          if (cameraActive.value) return '카메라 인식 활성화됨';
+          return '카메라 초기화 중...';
+        });
+
+        let canvasCtx = null;
+        let strokes = [];
+        let currentStroke = null;
+        let clearCooldown = 0;
+        let lastDrawTime = 0;
+
+        let smoothedX = null;
+        let smoothedY = null;
+
+        const selectColor = (val) => {
+          if (val === 'eraser') {
+            strokes = [];
+          } else {
+            activeColor.value = val;
+          }
+        };
+
+        const detectGesture = (landmarks) => {
+          // 간이 제스처 휴리스틱 (MediaPipe Hands Legacy API용)
+          // 0: 손목, 4: 엄지끝, 8: 검지끝, 12: 중지끝, 16: 약지끝, 20: 소지끝
+          const isFingerUp = (tipIdx, pipIdx) => landmarks[tipIdx].y < landmarks[pipIdx].y;
+          
+          const indexUp = isFingerUp(8, 6);
+          const middleUp = isFingerUp(12, 10);
+          const ringUp = isFingerUp(16, 14);
+          const pinkyUp = isFingerUp(20, 18);
+
+          if (indexUp && !middleUp && !ringUp && !pinkyUp) return 'Draw'; // 검지만
+          if (indexUp && middleUp && ringUp && pinkyUp) return 'Select'; // 모두 폄
+          if (!indexUp && !middleUp && !ringUp && !pinkyUp) return 'Pause'; // 모두 접음(주먹)
+          return 'None';
+        };
+
+        const onResults = (results) => {
+          const canvas = document.getElementById('draw-canvas');
+          if (!canvasCtx) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvasCtx = canvas.getContext('2d');
+          }
+
+          if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+          }
+
+          const ctx = canvasCtx;
+          ctx.save();
+          
+          // 비디오 화면 좌우 반전
+          ctx.scale(-1, 1);
+          
+          const videoAspect = results.image.width / results.image.height;
+          const canvasAspect = canvas.width / canvas.height;
+          let renderWidth, renderHeight, xOffset, yOffset;
+
+          if (canvasAspect > videoAspect) {
+            renderWidth = canvas.width;
+            renderHeight = canvas.width / videoAspect;
+            xOffset = 0;
+            yOffset = (canvas.height - renderHeight) / 2;
+          } else {
+            renderHeight = canvas.height;
+            renderWidth = canvas.height * videoAspect;
+            xOffset = (canvas.width - renderWidth) / 2;
+            yOffset = 0;
+          }
+
+          ctx.drawImage(results.image, -xOffset - renderWidth, yOffset, renderWidth, renderHeight);
+          ctx.restore();
+
+          // 배경을 매우 어둡게 (0.97)
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.97)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          let cursorX = null;
+          let cursorY = null;
+          let gesture = 'None';
+
+          if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const landmarks = results.multiHandLandmarks[0];
+            gesture = detectGesture(landmarks);
+            
+            const indexTip = landmarks[8];
+            
+            // 화면 가장자리(색상 메뉴 등)까지 쉽게 닿을 수 있도록 가동 범위 확대 (민감도 증가)
+            // 카메라 화면의 중앙 60% 영역만 써도 전체 캔버스(100%)를 덮도록 매핑
+            const marginX = 0.2;
+            const marginY = 0.2;
+            let mappedX = (indexTip.x - marginX) / (1 - 2 * marginX);
+            let mappedY = (indexTip.y - marginY) / (1 - 2 * marginY);
+            
+            mappedX = Math.max(0, Math.min(1, mappedX));
+            mappedY = Math.max(0, Math.min(1, mappedY));
+            
+            const targetX = (1 - mappedX) * canvas.width;
+            const targetY = mappedY * canvas.height;
+
+            // 부드러운 보간 (Linear Interpolation) 적용
+            if (smoothedX === null || smoothedY === null) {
+              smoothedX = targetX;
+              smoothedY = targetY;
+            } else {
+              const dist = Math.hypot(targetX - smoothedX, targetY - smoothedY);
+              if (dist > 150) {
+                smoothedX = targetX;
+                smoothedY = targetY;
+              } else {
+                smoothedX += (targetX - smoothedX) * 0.4;
+                smoothedY += (targetY - smoothedY) * 0.4;
+              }
+            }
+            cursorX = smoothedX;
+            cursorY = smoothedY;
+          } else {
+            smoothedX = null;
+            smoothedY = null;
+          }
+
+          if (clearCooldown > 0) clearCooldown -= 30;
+          const currentTime = performance.now();
+
+          // 제스처 그리기 모드 처리
+          if (gesture === 'Draw') {
+            currentGesture.value = 'Draw';
+            lastDrawTime = currentTime;
+            if (cursorX !== null && cursorY !== null) {
+              if (!currentStroke) {
+                currentStroke = { color: activeColor.value, thickness: 6, points: [] };
+              }
+              currentStroke.points.push({ x: cursorX, y: cursorY });
+            }
+          } else {
+            // 그리기 끊김 방지 (Debounce)
+            if (currentGesture.value === 'Draw' && currentTime - lastDrawTime < 600) {
+              if (cursorX !== null && cursorY !== null && gesture !== 'Pause') {
+                if (currentStroke) currentStroke.points.push({ x: cursorX, y: cursorY });
+              }
+            } else {
+              if (gesture === 'Select') {
+                currentGesture.value = 'Select';
+                if (currentStroke) { strokes.push(currentStroke); currentStroke = null; }
+                
+                // 가상 커서로 UI 색상 변경
+                if (cursorX !== null && cursorY !== null) {
+                  const btns = document.querySelectorAll('.color-btn');
+                  btns.forEach(btn => {
+                    const rect = btn.getBoundingClientRect();
+                    if (cursorX >= rect.left && cursorX <= rect.right && cursorY >= rect.top && cursorY <= rect.bottom) {
+                      const col = btn.getAttribute('data-color');
+                      if (col === 'eraser') {
+                        if (clearCooldown <= 0) { strokes = []; clearCooldown = 1000; }
+                      } else {
+                        activeColor.value = col;
+                      }
+                    }
+                  });
+                }
+              } else if (gesture === 'Pause') {
+                currentGesture.value = 'Pause';
+                if (currentStroke) { strokes.push(currentStroke); currentStroke = null; }
+              } else {
+                currentGesture.value = 'None';
+                if (currentStroke) { strokes.push(currentStroke); currentStroke = null; }
+              }
+            }
+          }
+
+          // 누적된 모든 선 렌더링
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          const allStrokes = currentStroke ? [...strokes, currentStroke] : strokes;
+          
+          allStrokes.forEach(stroke => {
+            if (stroke.points.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            for (let i = 1; i < stroke.points.length; i++) {
+              ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = stroke.thickness;
+            ctx.stroke();
+          });
+
+          // 커서 UI 렌더링
+          if (cursorX !== null && cursorY !== null) {
+            ctx.beginPath();
+            ctx.arc(cursorX, cursorY, 10, 0, 2 * Math.PI);
+            if (currentGesture.value === 'Draw') {
+              ctx.fillStyle = activeColor.value;
+              ctx.fill();
+            } else if (currentGesture.value === 'Select') {
+              ctx.strokeStyle = 'white';
+              ctx.lineWidth = 3;
+              ctx.stroke();
+              ctx.fillStyle = 'rgba(255,255,255,0.3)';
+              ctx.fill();
+            } else {
+              ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+          }
+        };
+
+        onMounted(async () => {
+          try {
+            // 4. 보안 정책(API) 예외 처리 및 알림 (로컬 파일 실행 대비)
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+              throw new Error("브라우저 보안 정책에 의해 카메라 API가 차단되었습니다. (file:// 프로토콜 제한 등)");
+            }
+
+            const videoElement = document.getElementById('video-element');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' } });
+            videoElement.srcObject = stream;
+            cameraActive.value = true;
+
+            const hands = new Hands({locateFile: (file) => {
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+            
+            hands.setOptions({
+              maxNumHands: 1,
+              modelComplexity: 1,
+              minDetectionConfidence: 0.5,
+              minTrackingConfidence: 0.5
+            });
+            hands.onResults(onResults);
+
+            isLoading.value = false;
+
+            const camera = new Camera(videoElement, {
+              onFrame: async () => {
+                await hands.send({image: videoElement});
+              },
+              width: 1280,
+              height: 720
+            });
+            camera.start();
+
+          } catch (err) {
+            console.error(err);
+            alert("카메라에 접근할 수 없습니다.\n\n원인: 로컬 파일(file://)로 실행 중이거나 권한이 차단되었을 수 있습니다.\n에러 상세: " + err.message);
+          }
+        });
+
+        return {
+          isLoading, cameraActive, activeColor, currentGesture, colors, statusMessage, selectColor
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
